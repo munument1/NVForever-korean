@@ -28893,6 +28893,27 @@ forbid = ["interface: CjkFontPath cannot be read as a font:"]
 manual = "cjk-original.png and cjk-sharp.png: the settings rail reads 'Aa 字形检查，继续。' with visible CJK and Latin glyphs on the same baseline"
 
 [[scenario]]
+name = "utf8-korean-ui"
+source = "[design] docs/spec-notes/fonts.md §§2.1 and 2.3: UTF-8 enables the outline fallback used to draw Korean menu text."
+note = "Set NVF_KOREAN_SMOKE_HOME to a disposable NVForever home with [Interface] CjkFontPath pointing to a font with Hangul. Use --out outside the checkout for screenshots."
+areas = ["settings", "ui"]
+paths = ["crates/fnv-font/", "engine/nvf-play/src/cjk_font.rs", "lang/ko.toml"]
+requires = ["NVF_KOREAN_SMOKE_HOME"]
+env = { NVFOREVER_HOME = "{env:NVF_KOREAN_SMOKE_HOME}", NVF_CODE_PAGE = "65001", NVF_LANG_DIR = "{repo}/lang", NVF_PLAY_TEST_SCRIPT_MENUS = "0.3", NVF_PLAY_TEST_PAUSE = "10:22", NVF_PLAY_TEST_SETTINGS = "10.5:menu-font=Sharp,11:language=한국어,12:menu-font=Original,16:menu-font=Sharp,19:search:메뉴 글꼴", NVF_PLAY_TEST_PAUSE_MENU = "20:inspect", NVF_PLAY_TEST_SHOTS = "14:korean-original.png,18:korean-sharp.png" }
+args = ["--cell", "GSDocMitchellHouse", "--play", "--no-voice", "--no-messages"]
+run_seconds = 23
+expect = [
+  { text = "interface: CJK fallback font ", count = 1, label = "the Korean font is loaded once" },
+  { re = 'pause menu: search "메뉴 글꼴": .*keys .*menu-font', label = "Korean text finds the translated font setting" },
+]
+order = [["setup: game text read as UTF-8 (65001)", "language: ko", "settings: menu-font Original", "settings: menu-font Sharp"]]
+forbid = [
+  "interface: CjkFontPath cannot be read as a font:",
+  "language: ko (the game's font has no letters for it: the menus are drawn sharp)",
+]
+manual = "korean-original.png and korean-sharp.png show Korean settings text with intact glyphs."
+
+[[scenario]]
 name = "language-choice"
 source = "#1443: the settings page's Language row lists the languages found in the lang folders (NVF_LANG_DIR here, a made-up one), takes one at once and draws the page again; a broken language file is skipped with a warning"
 areas = ["settings"]

@@ -116,13 +116,39 @@ More options: `--world <WRLD>`, `--pitch`, `--weather`, `--fov`, `--size WxH`,
 `--time-scale` with `--timelapse <dir>`, `--run-seconds <s>`, `--plugins <files…>`,
 `--actors-pass-through`. `nvforever --help` lists them all.
 
+### Running a UTF-8 translation
+
+Keep the original plugin filenames and enable the translated files in the same load
+order. Start NVForever from the mod manager that supplies the files, or use the
+NVForever load order and give the engine access to the translated plugins.
+In NVForever's own `NVForever.ini`, set:
+
+```ini
+[Text]
+CodePage=65001
+
+[Interface]
+CjkFontPath=C:\Windows\Fonts\malgun.ttf
+
+[Settings]
+language=ko
+```
+
+`CjkFontPath` is optional and can point to an installed or separately downloaded
+font such as Noto Sans KR. `language=ko` selects the Korean engine interface.
+The plugin text is controlled by `CodePage`. A process environment override
+(`NVF_CODE_PAGE=65001`) takes priority over the INI. NVForever uses its own text
+renderer and can read UTF-8 ESM and ESP files from tNVSE translation packs directly.
+DLL hooks and tNVSE dictionary or font configuration files belong to the
+original game's renderer.
+
 Keys in `--play` are the game's defaults (W/A/S/D, E use, Tab Pip-Boy, T wait, F5/F9
 quicksave/quickload, Esc pause, `` ` `` console, F12 screenshot, saved as
 `nvforever-NNN.png` in the home's `screenshots` folder at the first free number); the full list is in
 [spec-notes/controls.md](spec-notes/controls.md). In the explorer:
 W/A/S/D move, Q/E down/up, Shift faster, right mouse drag look, wheel speed, `[`/`]` hour.
 
-The asset viewer:
+### Asset viewer
 
 ```powershell
 cargo run --release --bin nvf-viewer -- --data $D --filter "clutter\junk\nv"

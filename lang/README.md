@@ -5,8 +5,8 @@ hacking log. The original game's text is not copied (LEGAL.md). The game's own t
 (items, dialogue, quests) comes from the plugins of your install, so a localized install
 already shows it in its language. Only NVForever's own words need a translation, and
 this folder holds them, one file per language (#1443). Shipped (#1948): `de.toml`
-(Deutsch), `es.toml` (Español), `fr.toml` (Français), `it.toml` (Italiano) and `ru.toml`
-(Русский).
+(Deutsch), `es.toml` (Español), `fr.toml` (Français), `it.toml` (Italiano), `ru.toml`
+(Русский), and `ko.toml` (한국어).
 
 ## A language file
 
@@ -50,8 +50,8 @@ settings page (Display, Interface: Language) and acts at once. It is kept as `la
 
 Until one is chosen there, the start picks the language of the game's text when its code
 page tells it and a file of it was found: Windows-1251 (a Russian install) chooses `ru`
-(#1948). The start's log says so. Windows-1250 and 1252 are each several languages, so
-they choose none and English stays.
+(#1948). The start's log says so. UTF-8 can carry any language, so choose 한국어
+in settings or set `language=ko` under `[Settings]` in NVForever.ini.
 
 ## Checked
 
@@ -72,16 +72,15 @@ name with no line (a resolution, a display's name, a language's own name) shows 
 is. A note that names a choice names it as the page shows it, so a translated choice
 name is translated in the notes too.
 
-The game's fonts hold 256 glyphs in the install's code page (docs/spec-notes/fonts.md),
-so a translation can only use the letters that code page has: Cyrillic on a Russian
-install (`[Text] CodePage=1251`), but not Chinese.
+The game's fonts hold 256 glyphs in the install's code page (docs/spec-notes/fonts.md).
+The Korean interface uses runtime CJK fallback for Hangul. For a specific Korean
+font, set `CjkFontPath` under `[Interface]` in NVForever.ini.
 
 The ammo card's fallback labels also use these files when an AMEF has no FULL name:
 `Damage`, `Damage resist`, `Damage threshold`, `Spread`, `Weapon wear`, `Fatigue`,
 `Ammo effect` [design, #2502; `engine/nvf-play/src/pipboy/items.rs`]. An effect's own
 FULL remains the load order's text [design, #2502].
 
-So the language shown must suit the install's code page: German, French, Italian and
-Spanish need Windows-1252 (an English, German, French, Italian or Spanish install), and
-Russian needs Windows-1251 (a Russian install). A letter the fonts lack is drawn as `?`.
-Every file here keeps to its code page's letters (no `œ`).
+German, French, Italian and Spanish use Windows-1252 bitmap slots, and Russian
+uses Windows-1251 bitmap slots. When the primary and fallback faces have no
+glyph for a character, it is drawn as `?`.
