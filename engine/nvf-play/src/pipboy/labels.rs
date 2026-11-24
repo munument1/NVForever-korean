@@ -12,7 +12,8 @@
 //!
 //! The English masters define none of these settings [observed: FalloutNV.esm and the
 //! add-ons, 2026-11-08], so an English install shows NVForever's own words, the ones
-//! written beside each name at its use. A localized install's language plugin defines
+//! written beside each name at its use, translated by the active interface language.
+//! A localized install's language plugin defines
 //! them, and its words are drawn [design].
 //!
 //! The settings are read once, when the simulation's tables are built ([`set`]): the load
@@ -44,7 +45,7 @@ fn strings(settings: &HashMap<String, Setting>) -> HashMap<String, String> {
 /// The setting `name`'s text when the load order defines it, else `ours`, NVForever's own
 /// word for that place.
 pub fn label(name: &str, ours: &'static str) -> &'static str {
-    label_in(DEFINED.get(), name, ours)
+    label_in(DEFINED.get(), name, fnv_util::words::tr(ours))
 }
 
 /// The setting `name`'s text when the load order defines it, else NVForever's own label

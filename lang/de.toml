@@ -636,3 +636,10 @@ name = "Deutsch"
 "{name} ({count}) added" = "{name} ({count}) erhalten"
 "Map marker added" = "Kartenmarkierung hinzugefügt"
 "Map marker added: {name}" = "Kartenmarkierung hinzugefügt: {name}"
+
+# Game menu labels and corner messages
+"{kinds} items added ({total} in all)" = "{kinds} Gegenstandsarten erhalten ({total} insgesamt)"
+"{name} removed" = "{name} entfernt"
+"{name} ({count}) removed" = "{name} ({count}) entfernt"
+"{name} increased to {value}" = "{name} auf {value} gestiegen"
+"Note: {name}" = "Notiz: {name}"

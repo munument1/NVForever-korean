@@ -871,11 +871,11 @@ pub(crate) fn follow(
         const MANY: usize = 4;
         if a.taken.len() >= MANY {
             let total: i32 = a.taken.iter().map(|(_, n)| n).sum();
-            c.push(format!("{} items added ({total} in all)", a.taken.len()).into());
+            c.push(crate::corner_messages::items_added(a.taken.len(), total).into());
         } else {
             for (item, n) in &a.taken {
                 let name = crate::menu::model::display_name(forms, *item);
-                c.push(if *n > 1 { format!("{name} ({n}) added") } else { format!("{name} added") }.into());
+                c.push(crate::corner_messages::item_added(&name, i64::from(*n)).into());
             }
         }
     }

@@ -658,3 +658,10 @@ name = "Русский"
 "{name} ({count}) added" = "{name} ({count}): получено"
 "Map marker added" = "Метка на карте добавлена"
 "Map marker added: {name}" = "Метка на карте добавлена: {name}"
+
+# Corner messages
+"Note: {name}" = "Заметка: {name}"
+"{kinds} items added ({total} in all)" = "Добавлены предметы (видов: {kinds}, всего: {total})"
+"{name} ({count}) removed" = "Удалено: {name} ({count})"
+"{name} increased to {value}" = "{name}: новый уровень — {value}"
+"{name} removed" = "Удалено: {name}"

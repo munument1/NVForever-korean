@@ -444,11 +444,17 @@ pub fn effects_with_corner_clear(events: &[Event], skip: &BTreeSet<usize>, clear
             EventKind::BookRead { actor, points, .. } if *actor == player && *points == 0.0 && ctx.tweaks().is_some_and(|t| t.no_book_message_without_gain) => {}
             EventKind::BookRead { actor, value, skill, .. } if *actor == player => {
                 let name = ctx.skill_name(*skill);
-                push_notify(&mut out, i, Note { text: format!("{name} increased to {}", value.round()), icon: None, seconds: None });
+                let text = fnv_util::words::trf("{name} increased to {value}", &[("name", &name), ("value", &value.round())]);
+                push_notify(&mut out, i, Note { text, icon: None, seconds: None });
             }
             EventKind::ItemRemoved { from, item, count, silent: false } if *from == player => {
-                let n = ctx.name(*item);
-                push_notify(&mut out, i, if *count > 1 { format!("{n} ({count}) removed") } else { format!("{n} removed") }.into());
+                let name = ctx.name(*item);
+                let text = if *count > 1 {
+                    fnv_util::words::trf("{name} ({count}) removed", &[("name", &name), ("count", count)])
+                } else {
+                    fnv_util::words::trf("{name} removed", &[("name", &name)])
+                };
+                push_notify(&mut out, i, text.into());
             }
             _ => {}
         }
@@ -464,11 +470,11 @@ pub fn effects_with_corner_clear(events: &[Event], skip: &BTreeSet<usize>, clear
     let line = |text: String| ScriptEffect::Notify(Note { text, icon: None, seconds });
     if added.len() >= MANY {
         let total: i32 = added.iter().map(|(_, n)| n).sum();
-        out.push(line(format!("{} items added ({total} in all)", added.len())));
+        out.push(line(crate::corner_messages::items_added(added.len(), total)));
     } else {
         for (item, n) in added {
             let name = ctx.name(item);
-            out.push(line(if n > 1 { format!("{name} ({n}) added") } else { format!("{name} added") }));
+            out.push(line(crate::corner_messages::item_added(&name, i64::from(n))));
         }
     }
     out

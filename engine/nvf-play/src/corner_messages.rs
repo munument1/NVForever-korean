@@ -24,6 +24,7 @@ use crate::script_events::Note;
 use bevy::image::CompressedImageFormatSupport;
 use bevy::prelude::*;
 use fnv_font::Font;
+use fnv_util::words::trf;
 use nvf_assets::GameData;
 use std::collections::VecDeque;
 
@@ -65,6 +66,18 @@ const BRACKET_FILE: &str = "interface\\icons\\mood\\glow_messages_seperator_left
 pub(crate) const DEFAULT_ICON: &str = "interface\\icons\\message icons\\glow_message_vaultboy_neutral.dds";
 /// Font 7 [documented: the file's text template; Fallout_default.ini `sFontFile_7`].
 const FONT: &str = "textures\\fonts\\baked-in_monofonto_large.fnt";
+
+pub(crate) fn item_added(name: &str, count: i64) -> String {
+    if count > 1 {
+        trf("{name} ({count}) added", &[("name", &name), ("count", &count)])
+    } else {
+        trf("{name} added", &[("name", &name)])
+    }
+}
+
+pub(crate) fn items_added(kinds: usize, total: i32) -> String {
+    trf("{kinds} items added ({total} in all)", &[("kinds", &kinds), ("total", &total)])
+}
 
 /// How long a message stays at full strength.
 fn seconds(note: &Note) -> f32 {

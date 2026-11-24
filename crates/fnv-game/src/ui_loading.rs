@@ -264,7 +264,7 @@ impl Source for UiFiles {
 /// label alone before the menu files are read; empty for a name in neither
 /// (menu-xml.md §2.4, task T10).
 pub fn game_string(game: &Game<'_>, name: &str) -> String {
-    game.ui_files.as_deref().and_then(|f| f.game_string(name)).or_else(|| fnv_ui::strings::built_in(name).map(str::to_owned)).unwrap_or_default()
+    game.ui_files.as_deref().and_then(|f| f.game_string(name)).or_else(|| fnv_ui::strings::built_in(name).map(|word| fnv_util::words::tr(word).to_owned())).unwrap_or_default()
 }
 
 #[derive(Default)]

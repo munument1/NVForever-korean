@@ -637,3 +637,10 @@ name = "Español"
 "{name} ({count}) added" = "{name} ({count}) añadidos"
 "Map marker added" = "Marcador de mapa añadido"
 "Map marker added: {name}" = "Marcador de mapa añadido: {name}"
+
+# Corner messages
+"Note: {name}" = "Nota: {name}"
+"{kinds} items added ({total} in all)" = "{kinds} tipos de objetos añadidos ({total} en total)"
+"{name} ({count}) removed" = "{name} ({count}) retirado"
+"{name} increased to {value}" = "{name} aumenta a {value}"
+"{name} removed" = "{name} retirado"

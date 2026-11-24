@@ -412,7 +412,7 @@ pub fn write_model(ui: &mut Ui, s: &Shown, view: &mut MenuTiles, file_repair_wor
 /// Titles too wide for their card ([`TIGHT_TITLES`]), once, only while the title is the strings
 /// table's label: a plugin's setting or a script's word stands (`Ui::built_in_label`).
 fn write_tight_titles(ui: &mut Ui, condition: &str) {
-    for (path, word) in TIGHT_TITLES.into_iter().chain([(CONDITION_CARD, condition)]) {
+    for (path, word) in TIGHT_TITLES.into_iter().map(|(path, word)| (path, fnv_util::words::tr(word))).chain([(CONDITION_CARD, condition)]) {
         let Some(t) = resolve_tile(ui, path) else { continue };
         if ui.built_in_label(t, "_Title").is_some() {
             ui.set_trait(t, "_Title", text(word));

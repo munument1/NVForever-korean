@@ -72,6 +72,12 @@ name with no line (a resolution, a display's name, a language's own name) shows 
 is. A note that names a choice names it as the page shows it, so a translated choice
 name is translated in the notes too.
 
+[design, #1443] The game menus and Pip-Boy also look here for NVForever's fallback
+labels, including headings, tabs and button prompts. String settings supplied by
+plugins take priority. Corner notifications that NVForever formats, such as the
+grouped item count or a skill increase, look up the template before inserting the
+item or skill name and the numbers.
+
 The game's fonts hold 256 glyphs in the install's code page (docs/spec-notes/fonts.md).
 The Korean interface uses runtime CJK fallback for Hangul. For a specific Korean
 font, set `CjkFontPath` under `[Interface]` in NVForever.ini.

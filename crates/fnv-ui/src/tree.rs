@@ -467,6 +467,8 @@ pub struct Ui {
     /// none, it has nothing to work out [design: writes of the same value, as the
     /// engine's every frame, leave the tree clean].
     dirty: bool,
+    /// The active language when standalone built-in labels were last refreshed.
+    language_generation: u32,
     /// Trait writes from outside so far, and those that changed the value
     /// ([`Ui::trait_write_counts`]). Not behind the test aid: an integer added to in
     /// `set_at`, as `gen` is beside them, with no lock, allocation or output; a gate would
@@ -1580,11 +1582,36 @@ impl Ui {
 
     // ---- working traits out -----------------------------------------------------------
 
+    fn translate_built_in_labels(&mut self, translate: impl Fn(&'static str) -> &'static str) -> usize {
+        let mut changed = 0;
+        for tile in self.tiles.iter_mut().filter(|tile| tile.live) {
+            for tr in &mut tile.traits {
+                let Some(source) = tr.built_in_label.as_deref().and_then(crate::strings::built_in) else { continue };
+                let value = Value::literal(translate(source));
+                if value.differs(&tr.value) {
+                    self.gen += 1;
+                    tr.value = value;
+                    tr.changed = self.gen;
+                    changed += 1;
+                }
+            }
+        }
+        self.dirty |= changed > 0;
+        changed
+    }
+
     /// Works out every trait with an expression whose sources changed since it was last
     /// worked out (all of them the first time), again and again until nothing changes.
     /// Returns how many trait values changed. Nothing to do when nothing changed since it
     /// last finished.
     pub fn update(&mut self) -> usize {
+        let language = fnv_util::words::generation();
+        let mut changed = if self.language_generation != language {
+            self.language_generation = language;
+            self.translate_built_in_labels(fnv_util::words::tr)
+        } else {
+            0
+        };
         if self.shape != self.shape_at_update {
             self.shape_at_update = self.shape;
             self.reshaped_run += 1;
@@ -1594,7 +1621,6 @@ impl Ui {
         if !self.dirty {
             return 0;
         }
-        let mut changed = 0;
         let mut sources = Vec::new();
         let mut struct_deps = Vec::new();
         #[cfg(test)]
@@ -2060,6 +2086,25 @@ fn apply(kind: OpKind, acc: Value, a: Value, me: TileId, k: usize) -> Value {
 #[cfg(test)]
 mod write_serial_tests {
     use super::*;
+
+    #[test]
+    fn a_language_change_refreshes_standalone_built_in_labels_and_their_readers() {
+        let xml = r#"<menu name="M"><_title>&-sAccept;</_title><_shown><copy src="me()" trait="_title"/></_shown><_plugin>&-sBack;</_plugin></menu>"#;
+        let mut src = MemSource::default().with("menu.xml", xml);
+        src.strings.insert("sAccept".into(), "Accept".into());
+        src.strings.insert("sBack".into(), "Plugin label".into());
+        src.built_in_strings.insert("saccept".into());
+        let mut ui = Ui::new();
+        let root = ui.load_menu(&src, "menu.xml").unwrap();
+        ui.update();
+        assert_eq!(ui.translate_built_in_labels(|_| "확인"), 1);
+        ui.update();
+        assert_eq!(ui.tile(root).get("_shown").unwrap().text(), "확인");
+        assert_eq!(ui.tile(root).get("_plugin").unwrap().text(), "Plugin label");
+        assert_eq!(ui.translate_built_in_labels(|word| word), 1);
+        ui.update();
+        assert_eq!(ui.tile(root).get("_shown").unwrap().text(), "Accept");
+    }
 
     #[test]
     fn trait_write_serial_exhaustion_keeps_legacy_values_without_reusing_tokens() {

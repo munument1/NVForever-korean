@@ -28914,6 +28914,22 @@ forbid = [
 manual = "korean-original.png and korean-sharp.png show Korean settings text with intact glyphs."
 
 [[scenario]]
+name = "utf8-korean-pipboy-notices"
+source = "[design] #1443: NVForever's own Pip-Boy labels and corner notice templates read the active language file."
+note = "Use a disposable NVF_KOREAN_SMOKE_HOME set to Korean with a Hangul font. Give four item kinds in one batch, then open the Pip-Boy on a quest with a shown objective."
+areas = ["pipboy", "corner-messages", "ui"]
+paths = ["lang/ko.toml", "engine/nvf-play/src/pipboy/labels.rs", "engine/nvf-play/src/script_events.rs", "engine/nvf-play/src/corner_messages.rs", "crates/fnv-ui/src/strings.rs"]
+requires = ["NVF_KOREAN_SMOKE_HOME"]
+env = { NVFOREVER_HOME = "{env:NVF_KOREAN_SMOKE_HOME}", NVF_CODE_PAGE = "65001", NVF_LANG_DIR = "{repo}/lang", NVF_PLAY_TEST_CONSOLE = "1:player.additem 0000000F 2;player.additem 0000434F 1;player.additem 00015038 1;player.additem 00015169 1;1.1:close;8:StartQuest VMQ02;SetObjectiveDisplayed VMQ02 1 1;ForceActiveQuest VMQ02;8.3:close", NVF_PLAY_TEST_PIPBOY = "12:frame=screen,13:open,14:page=data,15:tab=2", NVF_PLAY_TEST_SHOTS = "2:korean-corner.png,18:korean-pipboy.png", NVF_PLAY_TEST_SCRIPT_MENUS = "0.3" }
+args = ["--cell", "GSDocMitchellHouse", "--play", "--no-voice", "--no-messages"]
+run_seconds = 20
+expect = [
+  { text = 'corner message: "아이템 4 종 획득 (총 5 개)"', label = "the grouped corner notice keeps both counts and separates them from their counters" },
+  { re = 'tiles: MapMenu page from tiles: tab quests, .*1 objectives, hints: .*위치 표시', label = "the quest button uses the localized built-in label" },
+]
+manual = "korean-corner.png and korean-pipboy.png show the Korean corner message and the quest menu with Korean labels."
+
+[[scenario]]
 name = "language-choice"
 source = "#1443: the settings page's Language row lists the languages found in the lang folders (NVF_LANG_DIR here, a made-up one), takes one at once and draws the page again; a broken language file is skipped with a warning"
 areas = ["settings"]

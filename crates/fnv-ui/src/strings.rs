@@ -249,9 +249,12 @@ impl GameStrings {
         built_in_in(self.built_in, name).map(|v| (v, Origin::BuiltIn))
     }
 
-    /// The text of `&-name;`, if any.
+    /// The display text of `&-name;`, translating only NVForever's own labels.
     pub fn get(&self, name: &str) -> Option<String> {
-        self.lookup(name).map(|(v, _)| v.to_owned())
+        self.lookup(name).map(|(value, origin)| match origin {
+            Origin::LoadOrder => value.to_owned(),
+            Origin::BuiltIn => fnv_util::words::tr_str(value).to_owned(),
+        })
     }
 }
 
