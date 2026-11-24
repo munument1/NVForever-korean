@@ -28924,7 +28924,7 @@ env = { NVFOREVER_HOME = "{env:NVF_KOREAN_SMOKE_HOME}", NVF_CODE_PAGE = "65001",
 args = ["--cell", "GSDocMitchellHouse", "--play", "--no-voice", "--no-messages"]
 run_seconds = 20
 expect = [
-  { text = 'corner message: "아이템 4 종 획득 (총 5 개)"', label = "the grouped corner notice keeps both counts and separates them from their counters" },
+  { text = 'corner message: "아이템 4 종 획득 / ( 총 5 개 )"', label = "the grouped corner notice keeps the spaced total together on its own line" },
   { re = 'tiles: MapMenu page from tiles: tab quests, .*1 objectives, hints: .*위치 표시', label = "the quest button uses the localized built-in label" },
 ]
 manual = "korean-corner.png and korean-pipboy.png show the Korean corner message and the quest menu with Korean labels."
