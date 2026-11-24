@@ -28916,18 +28916,20 @@ manual = "korean-original.png and korean-sharp.png show Korean settings text wit
 [[scenario]]
 name = "utf8-korean-pipboy-notices"
 source = "[design] #1443: NVForever's own Pip-Boy labels and corner notice templates read the active language file."
-note = "Use a disposable NVF_KOREAN_SMOKE_HOME set to Korean with a Hangul font. Give four item kinds in one batch, then open the Pip-Boy on a quest with a shown objective."
+note = "Use a disposable NVF_KOREAN_SMOKE_HOME set to Korean with a Hangul font. Give four item kinds in one batch, show the apparel tab and open a quest with an authored objective containing adjacent Hangul, a digit and brackets."
 areas = ["pipboy", "corner-messages", "ui"]
-paths = ["lang/ko.toml", "engine/nvf-play/src/pipboy/labels.rs", "engine/nvf-play/src/script_events.rs", "engine/nvf-play/src/corner_messages.rs", "crates/fnv-ui/src/strings.rs"]
+paths = ["lang/ko.toml", "engine/nvf-play/src/pipboy/labels.rs", "engine/nvf-play/src/script_events.rs", "engine/nvf-play/src/corner_messages.rs", "crates/fnv-ui/src/strings.rs", "crates/fnv-font/src/lib.rs"]
 requires = ["NVF_KOREAN_SMOKE_HOME"]
-env = { NVFOREVER_HOME = "{env:NVF_KOREAN_SMOKE_HOME}", NVF_CODE_PAGE = "65001", NVF_LANG_DIR = "{repo}/lang", NVF_PLAY_TEST_CONSOLE = "1:player.additem 0000000F 2;player.additem 0000434F 1;player.additem 00015038 1;player.additem 00015169 1;1.1:close;8:StartQuest VMQ02;SetObjectiveDisplayed VMQ02 1 1;ForceActiveQuest VMQ02;8.3:close", NVF_PLAY_TEST_PIPBOY = "12:frame=screen,13:open,14:page=data,15:tab=2", NVF_PLAY_TEST_SHOTS = "2:korean-corner.png,18:korean-pipboy.png", NVF_PLAY_TEST_SCRIPT_MENUS = "0.3" }
+env = { NVFOREVER_HOME = "{env:NVF_KOREAN_SMOKE_HOME}", NVF_CODE_PAGE = "65001", NVF_LANG_DIR = "{repo}/lang", NVF_PLAY_TEST_CONSOLE = '1:player.additem 0000000F 2;player.additem 0000434F 1;player.additem 000CCEBF 1;player.additem 00015169 1;1.1:close;8:StartQuest VMQ02;SetObjectiveText VMQ02 1 "시험용 부품2개(예비)를 확인하십시오.";SetObjectiveDisplayed VMQ02 1 1;ForceActiveQuest VMQ02;8.3:close', NVF_PLAY_TEST_PIPBOY = "12:frame=screen,13:open,14:page=items,15:tab=1,17:page=data,18:tab=2", NVF_PLAY_TEST_SHOTS = "2:korean-corner.png,16:korean-inventory.png,20:korean-pipboy.png", NVF_PLAY_TEST_SCRIPT_MENUS = "0.3" }
 args = ["--cell", "GSDocMitchellHouse", "--play", "--no-voice", "--no-messages"]
-run_seconds = 20
+run_seconds = 22
 expect = [
   { text = 'corner message: "아이템 4 종 획득 / ( 총 5 개 )"', label = "the grouped corner notice keeps the spaced total together on its own line" },
+  { text = 'quest message: 시험용 부품2개(예비)를 확인하십시오.', label = "the authored test objective reaches the quest UI" },
+  { re = 'tiles: InventoryMenu page from tiles: .*tab 1,', label = "the apparel list is drawn before opening the quest" },
   { re = 'tiles: MapMenu page from tiles: tab quests, .*1 objectives, hints: .*위치 표시', label = "the quest button uses the localized built-in label" },
 ]
-manual = "korean-corner.png and korean-pipboy.png show the Korean corner message and the quest menu with Korean labels."
+manual = "Check the grouped notice in korean-corner.png and the inventory name in korean-inventory.png. In korean-pipboy.png, the digit and brackets in the test objective have space around adjacent Hangul."
 
 [[scenario]]
 name = "language-choice"

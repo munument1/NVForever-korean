@@ -243,6 +243,9 @@ can supply these symbols when the original font has no slot for them.
   character and closing punctuation with the preceding character. Spaces and line breaks retain
   their existing behavior. Conjoining Hangul jamo stay together when wrapping.
   [Unicode Standard Annex #14, LB26](https://www.unicode.org/reports/tr14/#LB26) [documented]
+- [design] Adjacent Hangul and digits or brackets get a small extra gap in the shared
+  layout. It is included in measurement and wrapping and disappears at a line break.
+  An authored space already separates the pair.
 - How far apart the lines are, and where a text's first line stands under its top, is
   with the menu that was measured (`message-menu.md` §3). The interface files' text
   tiles: menu-xml.md §3.1.2, hud.md §14.10 (a line per font, #979).

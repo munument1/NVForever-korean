@@ -138,9 +138,9 @@ impl Line {
     }
 
     /// [`Line::text`] with the spaces between its words put back: the line holds the words'
-    /// characters only, so a gap after a character wider than its advance in `font` is
-    /// the spaces that stood there, as many as the space's advance goes into it (at least
-    /// one). The room before the first character is the text's leading spaces, put back the
+    /// characters only, so gaps wider than the implicit spacing are the spaces that stood
+    /// there, as many as the space's advance goes into them (at least one). The room before
+    /// the first character is the text's leading spaces, put back the
     /// same way (MCM's suffix " seconds" stood against its value). For a stand-in drawing of
     /// the line that sets its own letters (issue #2298: MCM's texts ran together where a
     /// font's picture was not read).
@@ -148,13 +148,17 @@ impl Line {
         let space = font.glyph(b' ').advance();
         let mut out = String::new();
         let mut end = 0.0;
+        let mut previous = None;
         for g in &self.glyphs {
-            if g.x - end > 0.5 {
-                let n = if space > 0.0 { ((g.x - end) / space).round().max(1.0) as usize } else { 1 };
+            let gap = g.x - end;
+            let implicit = font.mixed_script_gap(previous, g.ch);
+            if gap > 0.5 && gap > implicit * 1.5 {
+                let n = if space > 0.0 { (gap / space).round().max(1.0) as usize } else { 1 };
                 out.extend(std::iter::repeat_n(' ', n));
             }
             out.push(g.ch);
             end = g.x + font.glyph_of(g.ch).advance();
+            previous = Some(g.ch);
         }
         out
     }
@@ -196,6 +200,14 @@ pub fn is_cjk(c: char) -> bool {
             | 0x20000..=0x2ee5f
             | 0x2f800..=0x2fa1f
             | 0x30000..=0x3347f
+    )
+}
+
+fn is_hangul(c: char) -> bool {
+    matches!(
+        c as u32,
+        0x1100..=0x11ff | 0x3131..=0x318e | 0xa960..=0xa97c
+            | 0xac00..=0xd7a3 | 0xd7b0..=0xd7c6 | 0xd7cb..=0xd7fb | 0xffa0..=0xffdc
     )
 }
 
@@ -360,9 +372,30 @@ impl Font {
             .unwrap_or(*self.glyph(placed.code))
     }
 
+    /// Give adjacent Hangul and a number or bracket some room without inserting a space.
+    fn mixed_script_gap(&self, left: Option<char>, right: char) -> f32 {
+        let Some(left) = left else { return 0.0 };
+        let marker = |c: char| c.is_ascii_digit() || ('０'..='９').contains(&c) || "()[]{}（）［］｛｝〈〉《》「」『』【】〔〕".contains(c);
+        if (is_hangul(left) && marker(right)) || (is_hangul(right) && marker(left)) {
+            (self.size * 0.08).min((self.glyph(b' ').advance() * 0.5).max(0.0))
+        } else {
+            0.0
+        }
+    }
+
     /// The width of a text set in one line.
     pub fn width(&self, text: &str) -> f32 {
-        text.chars().map(|c| self.glyph_of(c).advance()).sum()
+        if text.is_ascii() {
+            return text.chars().map(|c| self.glyph_of(c).advance()).sum();
+        }
+        let mut previous = None;
+        let mut width = 0.0;
+        for c in text.chars() {
+            width += self.mixed_script_gap(previous, c);
+            width += self.glyph_of(c).advance();
+            previous = Some(c);
+        }
+        width
     }
 
     /// Set a text in lines (§3): a line ends at a line break, or before a word or CJK
@@ -382,18 +415,23 @@ impl Font {
                 if i > 0 {
                     gap += self.glyph(b' ').advance();
                 }
+                let mut previous = None;
                 for run in word_runs(word, cjk_wrap) {
                     if wrap.is_some_and(|max| {
-                        !line.glyphs.is_empty() && line.width + gap + self.width(run) > max
+                        let join = run.chars().next().map_or(0.0, |c| self.mixed_script_gap(previous, c));
+                        !line.glyphs.is_empty() && line.width + gap + join + self.width(run) > max
                     }) {
                         out.push(std::mem::take(&mut line));
                         gap = 0.0;
+                        previous = None;
                     }
                     let mut x = line.width + gap;
                     for c in run.chars() {
+                        x += self.mixed_script_gap(previous, c);
                         let code = code_of(c);
                         line.glyphs.push(Placed { code, ch: c, x });
                         x += self.glyph_of(c).advance();
+                        previous = Some(c);
                     }
                     line.width = x;
                     gap = 0.0;
@@ -587,6 +625,39 @@ mod tests {
         );
         assert_eq!(lines[2].width, 64.0);
         assert_eq!(lines[2].width, font.width("글。"));
+    }
+
+    #[test]
+    fn hangul_number_and_bracket_gaps_are_measured_and_preserve_explicit_spaces() {
+        let mut font = Font::parse(&file()).unwrap();
+        font.size = 25.0;
+        for ch in "한글".chars() {
+            font.extra.insert(ch, Glyph { width: 16.0, ..Glyph::default() });
+        }
+        let text = "한1글(한)";
+        let line = &font.lines(text, None)[0];
+        assert_eq!(line.glyphs.iter().map(|g| g.x).collect::<Vec<_>>(), [0.0, 18.0, 31.0, 49.0, 62.0, 80.0]);
+        assert_eq!((line.width, font.width(text)), (91.0, 91.0));
+        assert_eq!(line.text_spaced(&font), text);
+        let spaced = &font.lines("한 1", None)[0];
+        assert_eq!(spaced.glyphs[1].x, 21.0);
+        assert_eq!(spaced.text_spaced(&font), "한 1");
+        assert_eq!(font.width("A(12)"), 55.0);
+    }
+
+    #[test]
+    fn a_wrap_counts_the_hangul_gap_but_drops_it_at_the_start_of_the_next_line() {
+        let mut font = Font::parse(&file()).unwrap();
+        font.size = 25.0;
+        for ch in "한글".chars() {
+            font.extra.insert(ch, Glyph { width: 16.0, ..Glyph::default() });
+        }
+        let wrapped = |n| font.lines_with_cjk_wrap("한1글", Some(n), true);
+        let at_limit = wrapped(29.0);
+        assert_eq!(at_limit.iter().map(Line::text).collect::<Vec<_>>(), ["한1", "글"]);
+        let narrower = wrapped(28.0);
+        assert_eq!(narrower.iter().map(Line::text).collect::<Vec<_>>(), ["한", "1", "글"]);
+        assert!(narrower.iter().all(|line| line.glyphs[0].x == 0.0));
     }
 
     #[test]
