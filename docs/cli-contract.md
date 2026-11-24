@@ -272,7 +272,8 @@ against engine `main.rs`, `setup.rs` and `world.rs`):
   list and a Mod Organizer 2 profile's list the engine keeps the INI's. This command reads
   no INI: it takes `--archive-list`, else the profile's list, else the shipped one.
 - **Code page**: the engine takes `NVF_CODE_PAGE`, else `[Text] CodePage` of NVForever.ini,
-  before opening plugins; this command only `NVF_CODE_PAGE` (else Windows-1252). Master
+  before opening plugins; this command only `NVF_CODE_PAGE` (else Windows-1252). Use
+  `65001` or `utf-8` for UTF-8. Master
   names are decoded when a plugin is opened, so set `NVF_CODE_PAGE` to the INI's value
   when the load order has non-ASCII plugin names.
 - **Game folder**: the engine takes the install root or its Data folder and refuses an

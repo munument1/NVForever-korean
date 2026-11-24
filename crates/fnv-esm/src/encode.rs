@@ -11,7 +11,7 @@
 use crate::decode::{decode_sub, DecodeCtx, SubStatus};
 use crate::raw::Subrecord;
 use crate::schema::{Prim, Schema, TypeDef};
-use fnv_util::cp1252;
+use fnv_util::text as game_text;
 use serde_json::Value;
 
 fn from_hex(s: &str) -> Result<Vec<u8>, String> {
@@ -25,7 +25,8 @@ fn from_hex(s: &str) -> Result<Vec<u8>, String> {
 }
 
 fn text(s: &str) -> Result<Vec<u8>, String> {
-    cp1252::encode(s).ok_or_else(|| format!("{s:?} has a character Windows-1252 cannot hold"))
+    let page = game_text::code_page();
+    page.encode(s).ok_or_else(|| format!("{s:?} has a character {page} cannot hold"))
 }
 
 fn int_of(v: &Value) -> Result<i128, String> {
@@ -328,7 +329,7 @@ mod tests {
         let mut b = Vec::new();
         assert!(encode_type(&ty, &serde_json::json!([1, 2]), &s, &mut b).unwrap_err().contains("elements"));
         assert!(encode_type(&ty, &serde_json::json!([1, 2, 40000]), &s, &mut b).unwrap_err().contains("does not fit"));
-        assert!(encode_sub(b"TEST", b"EDID", &serde_json::json!("\u{4e2d}"), &s).unwrap_err().contains("Windows-1252"));
+        assert!(encode_sub(b"TEST", b"EDID", &serde_json::json!("\u{4e2d}"), &s).unwrap_err().contains("windows-1252"));
         assert!(encode_sub(b"TEST", b"OPTS", &serde_json::json!({"a": 1, "c": 2}), &s).unwrap_err().contains("absent optional"));
         assert!(encode_sub(b"TEST", b"DATA", &serde_json::json!({"kind": "Nope"}), &s).is_err());
         // NaN decodes to null, which cannot be written back.

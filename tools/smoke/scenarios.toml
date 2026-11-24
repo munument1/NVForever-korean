@@ -11943,6 +11943,19 @@ order = [[
 ]]
 
 [[scenario]]
+name = "code-page-65001"
+source = "docs/spec-notes/fonts.md §2.1: explicit UTF-8 starts the engine with code page 65001"
+areas = ["main-menu", "settings"]
+paths = ["crates/fnv-util/src/lib.rs", "crates/fnv-esm/src/encode.rs", "engine/nvforever/src/setup.rs"]
+env = { NVFOREVER_HOME = "code-page-65001-home", NVF_CODE_PAGE = "65001" }
+args = ["--play", "--menu", "--no-voice"]
+run_seconds = 8
+order = [[
+  "setup: game text read as UTF-8 (65001)",
+  { re = 'main menu: open \(', label = "the main menu opens with UTF-8" },
+]]
+
+[[scenario]]
 name = "menus-look"
 source = "owner todo 5 items 8, 19, 51: the pause menu in the original's look (column, highlight box, settings categories, quit question, load page), the game's pointer, the wait menu in the HUD's colour and fonts; frames pause_main/quit/settings/load.png and wait_menu.png in the working folder"
 areas = ["main-menu", "save"]

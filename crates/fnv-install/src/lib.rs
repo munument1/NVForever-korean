@@ -831,7 +831,7 @@ mod tests {
     #[test]
     fn code_page_is_read_and_kept() {
         assert_eq!(Config::from_ini("[Text]\nCodePage=\n").code_page, None);
-        for page in ["1251", "936"] {
+        for page in ["1251", "936", "65001", "UTF-8"] {
             let ini = format!("[Game]\nPath=C:\\FNV\n\n[Text]\nCodePage = {page}\n");
             assert_eq!(Config::from_ini(&ini).code_page.as_deref(), Some(page));
             let again = Config { game_dir: Some(PathBuf::from("D:\\FNV")), ..Config::default() }.to_ini(&ini);
