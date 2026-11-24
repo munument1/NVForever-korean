@@ -108,6 +108,56 @@ fn parse_header_and_roundtrip() {
 }
 
 #[test]
+fn utf8_plugin_text() {
+    use fnv_esm::decode::{decode_sub, decode_type, DecodeCtx};
+    use fnv_esm::encode::{encode_type, round_trip, RoundTrip};
+    use fnv_esm::schema::{Prim, TypeDef};
+    use fnv_util::{text, Cursor};
+    use serde_json::json;
+
+    // The engine chooses a process-wide page before opening its plugins.
+    if std::env::var_os("NVF_ESM_TEST_UTF8").is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "utf8_plugin_text"])
+            .env("NVF_ESM_TEST_UTF8", "1")
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stdout));
+        return;
+    }
+    text::set_code_page(text::CodePage::Utf8);
+    let kr = "한글 / 漢字 / かな";
+    let name = format!("{kr}\0");
+    let mut master = tes4(&[], 2, &[]);
+    let legacy = sub(b"FULL", b"Caf\xe9\0");
+    master.extend(group(b"WEAP", 0, &record(b"WEAP", 0, 0x0000_0800, &write_subrecords(&[legacy]))));
+    let base = Plugin::parse(&master, "Base.esm".into()).unwrap();
+    let mut source = tes4(&["Base.esm"], 2, &[]);
+    let line = sub(b"NAM1", name.as_bytes());
+    source.extend(group(b"INFO", 0, &record(b"INFO", 0, 0x0100_0800, &write_subrecords(&[line]))));
+    let translation = Plugin::parse(&source, "Translation.esp".into()).unwrap();
+    assert_eq!(base.to_bytes(), master);
+    assert_eq!(translation.to_bytes(), source);
+    let plugins = [base, translation];
+    let load_order = LoadOrder::new(&plugins).unwrap();
+    let schema = Schema::load_dir(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/fnv")).unwrap();
+    let mut ctx = DecodeCtx { schema: &schema, on_formid: None };
+    let legacy = load_order.records[0][0].subrecords().unwrap();
+    let translated = load_order.records[1][0].subrecords().unwrap();
+    assert_eq!(decode_sub(b"WEAP", &legacy[0], &mut ctx).value, Some(json!("Café")));
+    assert_eq!(decode_sub(b"INFO", &translated[0], &mut ctx).value, Some(json!(kr)));
+    assert!(matches!(round_trip(b"WEAP", &legacy[0], &schema), RoundTrip::Differs(..)));
+    assert_eq!(round_trip(b"INFO", &translated[0], &schema), RoundTrip::Same);
+
+    let t = TypeDef::Prim(Prim::LString);
+    let mut encoded = Vec::new();
+    encode_type(&t, &json!(kr), &schema, &mut encoded).unwrap();
+    assert_eq!(&encoded[..4], &(kr.len() as u32).to_le_bytes());
+    assert_eq!(&encoded[4..], kr.as_bytes());
+    assert_eq!(decode_type(&t, &mut Cursor::new(&encoded), &mut ctx).unwrap(), json!(kr));
+}
+
+#[test]
 fn guesses_gbk_and_cyrillic_from_plugin_text() {
     use fnv_esm::text_guess::guess;
     use fnv_util::text::CodePage::{Windows1251, Windows936};

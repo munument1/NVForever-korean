@@ -64,12 +64,13 @@ Russian install showed is in "Seen in a Russian install" below.
   terminal word list) is read in one code page per run, and a character is set with the
   glyph at its single-byte code (`fnv_util::text`, `fnv_font::code_of`). Typed
   text (console, character name, settings search) takes only characters with a
-  single-byte glyph code. With 936 those slots cover ASCII [design]. Archive
+  single-byte glyph code. With 936 those slots cover ASCII. UTF-8 uses the existing
+  Windows-1252 bitmap slots for the original fonts [design]. Archive
   and model names use the same code page as the plugins, so a path in a plugin still
   finds its file [hypothesis: that a localized install's file names use the plugins'
   code page; every vanilla English name is ASCII, the same in all supported code pages].
 - **How it is chosen.** `NVF_CODE_PAGE`, else `[Text] CodePage=` in NVForever's own
-  `NVForever.ini` (1252, 1251, 1250 or 936), else read from the plugins' text, else
+  `NVForever.ini` (1252, 1251, 1250, 936 or UTF-8), else read from the plugins' text, else
   Windows-1252 (the English install's, the release this engine targets) [hypothesis].
   No setting of the install names it: a Russian install's `Fallout_default.ini` says
   `sLanguage=ENGLISH` [observed: the owner's Russian install, 2026-11-08]. So the text
@@ -113,6 +114,20 @@ with authored Chinese and Russian samples]. Set `CodePage=936` if the sample is
 short, ambiguous, or mostly four-byte characters. Also set it for plugins with GBK
 or GB18030 master filenames containing non-ASCII characters. The loader reads master
 names from plugin headers before it can guess the code page [design].
+
+**UTF-8.** Microsoft assigns 65001 to UTF-8 [documented: [code-page
+identifiers](https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers)].
+Community translations can store Unicode text as UTF-8 inside the existing inline
+plugin string fields [observed: private Korean load order, read-only inspection of
+FULL, INFO/NAM1 and other text fields, including compressed records].
+
+[design] Select UTF-8 explicitly with `65001` or `utf-8`. The legacy sampler and
+setting precedence stay the same. In this mode, the game text reader decodes the
+valid UTF-8 portions of a string as Unicode and any invalid bytes as Windows-1252.
+This lets legacy text in the same load order display without a second setting.
+A legacy byte sequence that is also valid UTF-8 is ambiguous and reads as UTF-8.
+Strict decoding rejects malformed UTF-8. New text writes as UTF-8, record sizes
+and length prefixes count bytes, and unmodified raw plugin bytes stay intact.
 
 **Seen in a Russian install** [observed: the owner's Russian install, 2026-11-08, read
 with `fnvtool` and looked at as pictures; one install, not a Steam download]:

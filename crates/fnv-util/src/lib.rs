@@ -42,8 +42,9 @@ pub mod cp1252 {
 /// `NVForever.ini` (`[Text] CodePage=`) or `NVF_CODE_PAGE`. Windows-1252 is the default,
 /// so an English install reads exactly as it did. The Windows-125x pages round-trip
 /// all 256 single bytes. The single-byte glyph and input slots of 936 cover ASCII.
+/// UTF-8 uses Windows-1252 slots for the legacy bitmap fonts.
 pub mod text {
-    use encoding_rs::{Encoding, GB18030, WINDOWS_1250, WINDOWS_1251, WINDOWS_1252};
+    use encoding_rs::{Encoding, GB18030, UTF_8, WINDOWS_1250, WINDOWS_1251, WINDOWS_1252};
     use std::borrow::Cow;
     use std::sync::atomic::{AtomicU8, Ordering};
     use std::sync::OnceLock;
@@ -60,14 +61,17 @@ pub mod text {
         Windows1250,
         /// Simplified Chinese; uses the GB18030 codec including GBK.
         Windows936,
+        /// Unicode text in UTF-8.
+        Utf8,
     }
 
     impl CodePage {
-        pub const ALL: [CodePage; 4] = [
+        pub const ALL: [CodePage; 5] = [
             CodePage::Windows1252,
             CodePage::Windows1251,
             CodePage::Windows1250,
             CodePage::Windows936,
+            CodePage::Utf8,
         ];
 
         /// The code page's number.
@@ -77,15 +81,18 @@ pub mod text {
                 CodePage::Windows1251 => 1251,
                 CodePage::Windows1250 => 1250,
                 CodePage::Windows936 => 936,
+                CodePage::Utf8 => 65001,
             }
         }
 
         /// The code page a setting names: its number, with or without `cp`, `windows-`
-        /// or `windows` before it, or `gbk`/`gb18030` for 936 (case ignored).
+        /// or `windows` before it, or one of the named encodings below (case ignored).
         pub fn from_name(name: &str) -> Option<CodePage> {
             let n = name.trim().to_ascii_lowercase();
-            if matches!(n.as_str(), "gbk" | "gb18030") {
-                return Some(CodePage::Windows936);
+            match n.as_str() {
+                "gbk" | "gb18030" => return Some(CodePage::Windows936),
+                "utf8" | "utf-8" => return Some(CodePage::Utf8),
+                _ => {}
             }
             let digits = ["windows-", "windows", "cp"].iter().find_map(|p| n.strip_prefix(p)).unwrap_or(&n);
             CodePage::ALL.into_iter().find(|c| digits == c.number().to_string())
@@ -97,11 +104,15 @@ pub mod text {
                 CodePage::Windows1251 => WINDOWS_1251,
                 CodePage::Windows1250 => WINDOWS_1250,
                 CodePage::Windows936 => GB18030,
+                CodePage::Utf8 => UTF_8,
             }
         }
 
         /// The high glyph slots of the single-byte code pages.
         fn high(self) -> Option<&'static [char; 128]> {
+            if self == CodePage::Utf8 {
+                return CodePage::Windows1252.high();
+            }
             static TABLES: [OnceLock<[char; 128]>; 3] = [OnceLock::new(), OnceLock::new(), OnceLock::new()];
             Some(TABLES.get(self as usize)?.get_or_init(|| {
                 let bytes: Vec<u8> = (0x80..=0xFF).collect();
@@ -114,12 +125,28 @@ pub mod text {
             }))
         }
 
-        /// Decode, replacing malformed sequences with U+FFFD.
+        /// Decode. In UTF-8 mode, read invalid runs as Windows-1252 so legacy
+        /// text can coexist with UTF-8 (fonts.md §2.1).
         pub fn decode(self, bytes: &[u8]) -> String {
+            if self == CodePage::Utf8 {
+                let mut chunks = bytes.utf8_chunks();
+                let Some(first) = chunks.next() else {
+                    return String::new();
+                };
+                if first.invalid().is_empty() {
+                    return first.valid().to_owned();
+                }
+                let mut out = String::with_capacity(bytes.len());
+                for chunk in std::iter::once(first).chain(chunks) {
+                    out.push_str(chunk.valid());
+                    out.push_str(&WINDOWS_1252.decode_without_bom_handling(chunk.invalid()).0);
+                }
+                return out;
+            }
             self.encoding().decode_without_bom_handling(bytes).0.into_owned()
         }
 
-        /// Decode without replacement. None if any sequence is malformed.
+        /// Decode without replacement or fallback. None if any sequence is malformed.
         pub fn decode_strict(self, bytes: &[u8]) -> Option<Cow<'_, str>> {
             self.encoding()
                 .decode_without_bom_handling_and_without_replacement(bytes)
@@ -166,6 +193,7 @@ pub mod text {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match self {
                 CodePage::Windows936 => f.write_str("windows-936 (GB18030/GBK)"),
+                CodePage::Utf8 => f.write_str("UTF-8 (65001)"),
                 _ => write!(f, "windows-{}", self.number()),
             }
         }
@@ -201,7 +229,7 @@ pub mod text {
             (None, None) => return Ok(None),
         };
         CodePage::from_name(name).map(Some).ok_or_else(|| {
-            format!("{from}={name} is not a code page NVForever reads (1252, 1251, 1250 or 936/GB18030/GBK)")
+            format!("{from}={name} is not a code page NVForever reads (1252, 1251, 1250, 936/GB18030/GBK or 65001/UTF-8)")
         })
     }
 
@@ -431,7 +459,9 @@ mod tests {
         for (name, cp) in [("1251", Windows1251), ("cp1250", Windows1250), ("Windows-1252", Windows1252), ("windows1251", Windows1251), (" CP1251 ", Windows1251)] {
             assert_eq!(text::CodePage::from_name(name), Some(cp), "{name}");
         }
-        assert_eq!(text::CodePage::from_name("utf-8"), None);
+        for name in ["65001", "CP65001", " Windows-65001 ", " UTF-8 ", "utf8"] {
+            assert_eq!(text::CodePage::from_name(name), Some(Utf8), "{name}");
+        }
         assert_eq!(text::CodePage::from_name("125"), None);
         assert_eq!(Windows1251.to_string(), "windows-1251");
         for name in ["936", "CP936", " Windows-936 ", "GBK", "gb18030"] {
@@ -459,8 +489,10 @@ mod tests {
             Ok(Some(Windows936))
         );
         assert_eq!(configured_from(None, Some(" ")), Ok(None));
-        let env_error = configured_from(Some("65001"), Some("936")).unwrap_err();
-        assert!(env_error.starts_with("NVF_CODE_PAGE=65001"));
+        assert_eq!(configured_from(Some("65001"), Some("936")), Ok(Some(Utf8)));
+        assert_eq!(configured_from(None, Some("UTF-8")), Ok(Some(Utf8)));
+        let env_error = configured_from(Some("65002"), Some("936")).unwrap_err();
+        assert!(env_error.starts_with("NVF_CODE_PAGE=65002"));
         let ini_error = configured_from(None, Some("invalid")).unwrap_err();
         assert!(ini_error.contains("936/GB18030/GBK"));
     }
@@ -485,6 +517,37 @@ mod tests {
             assert_eq!(Windows936.decode(malformed), "\u{FFFD}");
         }
         assert_eq!(Windows936.decode(b"\x81 A"), "\u{FFFD} A");
+    }
+
+    #[test]
+    fn utf8_round_trips_and_rejects_malformed_sequences() {
+        use text::CodePage::Utf8;
+
+        for s in ["한글", "Map: 한글 123!", "한글 漢字 かな 𠀀", "\u{FEFF}한글"] {
+            assert_eq!(Utf8.encode(s).as_deref(), Some(s.as_bytes()));
+            assert_eq!(Utf8.decode(s.as_bytes()), s);
+            assert_eq!(Utf8.decode_strict(s.as_bytes()), Some(std::borrow::Cow::Borrowed(s)));
+        }
+        assert_eq!(Utf8.decode_z("한글\0ignored".as_bytes()), "한글");
+        for malformed in [b"\x80".as_slice(), b"\xec\x95", b"\xc0\x80", b"\xed\xa0\x80"] {
+            assert_eq!(Utf8.decode_strict(malformed), None);
+            assert_eq!(Utf8.decode(malformed), text::CodePage::Windows1252.decode(malformed));
+        }
+        assert_eq!(Utf8.code_of('é'), Some(0xE9));
+        assert_eq!(Utf8.code_of('한'), None);
+    }
+
+    #[test]
+    fn utf8_keeps_valid_runs_around_legacy_bytes() {
+        use text::CodePage::{Utf8, Windows1252};
+
+        let legacy = b"Caf\xe9 \x96 ";
+        let mixed = [legacy, "한글".as_bytes()].concat();
+        assert_eq!(Utf8.decode(legacy), Windows1252.decode(legacy));
+        assert_eq!(Utf8.decode(&mixed), "Café – 한글");
+        assert_eq!(Utf8.decode_strict(&mixed), None);
+        assert_eq!(Windows1252.decode(b"\xc3\xa9"), "Ã©");
+        assert_eq!(Utf8.decode(b"\xc3\xa9"), "é");
     }
 
     #[test]

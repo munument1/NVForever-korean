@@ -305,7 +305,8 @@ fn count(nodes: &[Node]) -> usize {
 }
 
 fn zstring(s: &str) -> Result<Vec<u8>, String> {
-    let mut b = fnv_util::cp1252::encode(s).ok_or_else(|| format!("{s:?} has a character Windows-1252 cannot hold"))?;
+    let page = fnv_util::text::code_page();
+    let mut b = page.encode(s).ok_or_else(|| format!("{s:?} has a character {page} cannot hold"))?;
     b.push(0);
     Ok(b)
 }

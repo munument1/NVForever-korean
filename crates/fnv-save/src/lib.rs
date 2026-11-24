@@ -1026,11 +1026,14 @@ mod tests {
         let mut engine = EngineSnapshot::new();
         engine.active_quest = Some(0x0010_4C1C);
         engine.extra.insert("sky".into(), serde_json::json!({"weather": "Clear"}));
-        let body = SaveBody::new(serde_json::json!({"format": "fnv.game.state/1"}), engine);
+        let mut header = header();
+        header.player_name = "한글 Player".into();
+        header.location = "황무지".into();
+        let body = SaveBody::new(serde_json::json!({"format": "fnv.game.state/1", "text": "한글 漢字 かな"}), engine);
         let bytes = serde_json::to_vec(&body).unwrap();
-        write(&p, &header(), b"png", &bytes, false).unwrap();
+        write(&p, &header, b"png", &bytes, false).unwrap();
         let (h, shot, back): (SaveHeader, Vec<u8>, SaveBody<serde_json::Value>) = read_body(&p).unwrap();
-        assert_eq!(h, header());
+        assert_eq!(h, header);
         assert_eq!(shot, b"png");
         assert_eq!(back, body);
         assert_eq!(back.format, BODY_FORMAT);

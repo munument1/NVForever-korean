@@ -74,6 +74,31 @@ fn body(p: &Program) -> &[Stmt] {
     &p.blocks[0].body
 }
 
+#[test]
+fn utf8_script_string_keeps_its_byte_length() {
+    // Do not change the process-wide page for other tests running in parallel.
+    if std::env::var_os("NVF_SCRIPT_TEST_UTF8").is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "utf8_script_string_keeps_its_byte_length"])
+            .env("NVF_SCRIPT_TEST_UTF8", "1")
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stdout));
+        return;
+    }
+    fnv_util::text::set_code_page(fnv_util::text::CodePage::Utf8);
+    let label = "한글 Test 漢字";
+    let (compiled, program) = build(&format!(
+        "begin GameMode\nplayer.PlayIdle \"{label}\"\nplayer.Disable\nend"
+    ));
+    let [Stmt::Call { call }, Stmt::Call { .. }] = body(&program) else {
+        panic!("expected two calls");
+    };
+    assert_eq!(call.args, [Arg::String(label.into())]);
+    let encoded = [(label.len() as u16).to_le_bytes().as_slice(), label.as_bytes()].concat();
+    assert!(compiled.bytes.windows(encoded.len()).any(|bytes| bytes == encoded));
+}
+
 fn ops(e: &Expr) -> Vec<String> {
     e.0.iter()
         .map(|t| match t {
