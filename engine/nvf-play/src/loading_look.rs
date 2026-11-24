@@ -122,7 +122,8 @@ pub fn tip_lines(font: &Font, text: &str, style: &TipStyle, window: Vec2) -> Vec
 pub struct Tip {
     pub text: String,
     pub style: TipStyle,
-    pub drawn_for: Option<Vec2>,
+    /// Window size and font revision of the current layout.
+    pub drawn_for: Option<(Vec2, u32)>,
 }
 
 /// What the screens read once and keep: the emblem, its textures, the band and the font.
@@ -155,8 +156,8 @@ impl Look {
     }
 }
 
-/// Draw each tip for the window, again when its size changes: how the text wraps follows
-/// the window's shape. In the frame the screen comes up too (`crate::loading`'s chain).
+/// Draw each tip for the window, then reflow after a resize or a font fallback change.
+/// In the frame the screen comes up too (`crate::loading`'s chain).
 pub fn fit_tip(
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
@@ -171,14 +172,15 @@ pub fn fit_tip(
     let Ok(window) = windows.single() else { return };
     let Some(mut images) = images else { return };
     let size = Vec2::new(window.width(), window.height());
+    let layout = (size, crate::cjk_font::revision());
     let bc = bc_supported(formats.as_deref());
     let data = data.as_deref();
     let look = &mut *look;
     for (entity, mut tip) in &mut tips {
-        if tip.drawn_for == Some(size) {
+        if tip.drawn_for == Some(layout) {
             continue;
         }
-        tip.drawn_for = Some(size);
+        tip.drawn_for = Some(layout);
         let number = font_number(&tip.style);
         let font = look.faces.entry(number).or_insert_with(|| {
             // The stand-in's size and advance are about those of the game's font 6.
@@ -484,6 +486,38 @@ mod tests {
         }
         // Font 6's line under the box's top, the next one pitch on (fonts.md §3.1).
         assert_eq!((tall[0].2, tall[1].2), (122.0, 160.0));
+    }
+
+    #[test]
+    fn a_font_revision_reflows_the_tip_at_the_same_window_size() {
+        use bevy::ecs::schedule::SingleThreadedExecutor;
+
+        crate::cjk_font::with_enabled_for_test(|| {
+            let mut app = App::new();
+            app.init_resource::<Assets<Image>>()
+                .init_resource::<Look>()
+                .add_systems(Update, fit_tip)
+                // The test font override is local to this thread.
+                .edit_schedule(Update, |schedule| {
+                    schedule.set_executor(SingleThreadedExecutor::new());
+                });
+            app.world_mut().spawn((
+                Window { resolution: bevy::window::WindowResolution::new(1280, 720), ..default() },
+                PrimaryWindow,
+            ));
+            let old_layout = (WIDE, crate::cjk_font::revision().wrapping_sub(1));
+            let tip = app.world_mut().spawn(Tip {
+                text: "Loading tip".into(),
+                style: TipStyle::FALLBACK,
+                drawn_for: Some(old_layout),
+            }).id();
+            let old = app.world_mut().spawn(ChildOf(tip)).id();
+            app.update();
+            assert!(app.world().get_entity(old).is_err());
+            let new_layout = app.world().get::<Tip>(tip).unwrap().drawn_for.unwrap();
+            assert_eq!(new_layout.0, WIDE);
+            assert_ne!(new_layout, old_layout);
+        });
     }
 
     #[test]

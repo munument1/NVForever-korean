@@ -1198,7 +1198,7 @@ pub struct MenuFont {
 
 impl MenuFont {
     /// Whether the menus are drawn in the vector font: the row says Sharp, or the game's
-    /// font cannot write the chosen language ([`language_fits_raster`]).
+    /// font and its fallbacks cannot write the chosen language ([`language_fits_raster`]).
     pub fn drawn_sharp(&self) -> bool {
         self.sharp || !language_fits_raster()
     }
@@ -1224,12 +1224,14 @@ impl MenuFont {
     }
 }
 
-/// Whether the game's raster fonts can write the chosen language: its name, written in it,
-/// has a code in this run's code page (`Русский` has none in Windows-1252, the English,
-/// French, German, Italian and Spanish installs' page).
+/// Whether the raster fonts and the active CJK fallback can render the language's name.
 pub fn language_fits_raster() -> bool {
     let id = fnv_util::words::language();
-    fnv_util::words::languages().into_iter().find(|(i, _)| *i == id).is_none_or(|(_, name)| fnv_util::text::encodable(name))
+    fnv_util::words::languages().into_iter().find(|(i, _)| *i == id).is_none_or(|(_, name)| {
+        let page = fnv_util::text::code_page();
+        let cjk = crate::cjk_font::enabled();
+        name.chars().all(|ch| page.code_of(ch).is_some() || (cjk && fnv_font::is_cjk(ch)))
+    })
 }
 
 /// The menus' letters may have changed (the Menu Font row, the language): the pause menu's

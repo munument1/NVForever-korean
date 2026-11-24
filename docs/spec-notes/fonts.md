@@ -208,18 +208,24 @@ SimSun (`simsun.ttc`) among its [Windows fonts](https://learn.microsoft.com/en-u
 Apple lists PingFang and Hiragino in its [macOS font list](https://support.apple.com/en-us/127491).
 
 [design] NVForever enables CJK fallback and wrapping when the game's text uses
-code page 936, the current interface language is `zh`, or `[Interface] CjkFontPath`
+code page 936 or UTF-8, the current interface language is `ko` or `zh`, or `[Interface] CjkFontPath`
 in `NVForever.ini` names a font. Otherwise the interface uses its original fonts
-and wrapping.
+and wrapping. The Original menu font can use this fallback when the language name
+contains CJK characters. Sharp remains the fallback for names with letters outside
+both the raster code page and the active CJK fallback.
 
 `CjkFontPath` can name a TrueType or OpenType font or collection. A relative path
 is resolved next to the INI. When fallback is enabled without that setting,
-NVForever tries the Windows fonts above, Noto Sans CJK or WenQuanYi on Linux, and
+NVForever tries the Windows fonts above and Malgun Gothic, Noto Sans CJK or WenQuanYi on Linux, and
 PingFang or Hiragino on macOS. The first missing CJK character queues a read and
 parse on the engine's read pool. Layout and drawing use `?` while waiting and
 when no font provides the character. When the font is ready, visible text is measured
 and redrawn. The same cached glyph supplies the advance and image on the primary
 face's baseline, preserving line spacing.
+
+[observed: private Korean load order, item FULL fields] Some item names start
+with U+2605 BLACK STAR or U+2606 WHITE STAR. [design] The same outline fallback
+can supply these symbols when the original font has no slot for them.
 
 ## 3. Setting text
 
@@ -235,8 +241,8 @@ face's baseline, preserving line spacing.
 - [design] With CJK fallback enabled (§2.3), NVForever also wraps at character
   boundaries in unspaced CJK text. It keeps opening punctuation with the following
   character and closing punctuation with the preceding character. Spaces and line breaks retain
-  their existing behavior.
-  [Unicode Standard Annex #14, §6.1](https://www.unicode.org/reports/tr14/) [documented]
+  their existing behavior. Conjoining Hangul jamo stay together when wrapping.
+  [Unicode Standard Annex #14, LB26](https://www.unicode.org/reports/tr14/#LB26) [documented]
 - How far apart the lines are, and where a text's first line stands under its top, is
   with the menu that was measured (`message-menu.md` §3). The interface files' text
   tiles: menu-xml.md §3.1.2, hud.md §14.10 (a line per font, #979).

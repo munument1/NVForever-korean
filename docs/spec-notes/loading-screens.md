@@ -127,6 +127,8 @@ shipped; a hudtest save at Doc Mitchell's house. Numbers are read off the frames
   y 100 is 75 at 720 and 107 at 1024, x 210 is 210 at both, and the lines' centre is 635-636
   at both, the box's. Lines 28 px apart at 720 and 40 at 1024, font 6's pitch of 38 units
   (fonts.md §3.1). The colour is amber in both.
+- [design] Loading screen tips reflow when the runtime font fallback revises glyph
+  advances. The text box and its dark band use the new layout together.
 - **Font 6 or 7.** LSCT says font 6; the tip tiles of `loading_menu.xml` say font 7
   [documented: the file]. NVForever takes LSCT's. Three lines of the frames set in each
   font's advances: font 6 within 0.3 % of the frames' widths, font 7 11 % narrower (computed).

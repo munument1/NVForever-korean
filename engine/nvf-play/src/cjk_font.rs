@@ -27,7 +27,9 @@ pub fn configure(path: Option<PathBuf>) {
 }
 
 fn enabled_for(code_page: u16, language: &str, path: Option<&Path>) -> bool {
-    code_page == 936 || language == "zh" || path.is_some_and(|path| !path.as_os_str().is_empty())
+    matches!(code_page, 936 | 65001)
+        || matches!(language, "ko" | "zh")
+        || path.is_some_and(|path| !path.as_os_str().is_empty())
 }
 
 pub fn enabled() -> bool {
@@ -76,7 +78,7 @@ fn system_paths() -> Vec<PathBuf> {
         return Vec::new();
     };
     let fonts = PathBuf::from(root).join("Fonts");
-    ["msyh.ttc", "simhei.ttf", "simsun.ttc"]
+    ["msyh.ttc", "simhei.ttf", "simsun.ttc", "malgun.ttf"]
         .map(|name| fonts.join(name))
         .into()
 }
@@ -506,11 +508,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fallback_requires_code_page_936_chinese_ui_or_a_path() {
-        let calls = |page, language, path| {
+    fn fallback_requires_cjk_capable_code_page_cjk_ui_or_a_path() {
+        let calls = |page, language, path, ch| {
             let mut calls = 0;
             let active = enabled_for(page, language, path);
-            assert!(lookup_when_enabled(active, '中', 24.0, |_| {
+            assert!(lookup_when_enabled(active, ch, 24.0, |_| {
                 calls += 1;
                 None
             })
@@ -522,15 +524,16 @@ mod tests {
             (1251, "ru"),
             (1250, "pl"),
             (1252, "ja"),
-            (65001, "de"),
         ] {
-            assert_eq!(calls(page, language, None), 0);
-            assert_eq!(calls(page, language, Some(Path::new(""))), 0);
+            assert_eq!(calls(page, language, None, '中'), 0);
+            assert_eq!(calls(page, language, Some(Path::new("")), '中'), 0);
         }
-        assert_eq!(calls(936, "en", None), 1);
-        assert_eq!(calls(1252, "zh", None), 1);
-        assert_eq!(calls(1252, "en", Some(Path::new("custom-font.otf"))), 1);
-        assert_eq!(calls(1252, "en", None), 0);
+        let utf8 = fnv_util::text::CodePage::from_name("65001").unwrap();
+        assert_eq!(calls(utf8.number(), "de", None, '한'), 1);
+        assert_eq!(calls(936, "en", None, '中'), 1);
+        assert_eq!(calls(1252, "zh", None, '中'), 1);
+        assert_eq!(calls(1252, "ko", None, '한'), 1);
+        assert_eq!(calls(1252, "en", Some(Path::new("custom-font.otf")), '中'), 1);
     }
 
     /// Make one synthetic CJK mapping in the already bundled OFL test font.

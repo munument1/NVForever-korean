@@ -204,7 +204,37 @@ pub fn is_cjk(c: char) -> bool {
 fn cjk_break(left: char, right: char) -> bool {
     const OPENING: &str = "([{‘“〈《「『【〔〖〘〚（［｛｟｢";
     const CLOSING: &str = ")]},.!?;:’”、。〉》」』】〕〗〙〛）］｝｠｣，．！？；：％…";
-    (is_cjk(left) || is_cjk(right)) && !OPENING.contains(left) && !CLOSING.contains(right)
+    (is_cjk(left) || is_cjk(right))
+        && !OPENING.contains(left)
+        && !CLOSING.contains(right)
+        && !joins_hangul(left, right)
+}
+
+/// Unicode line-break rule LB26 for Hangul syllable blocks.
+fn joins_hangul(left: char, right: char) -> bool {
+    enum Hangul {
+        Leading,
+        Vowel,
+        Trailing,
+        Lv,
+        Lvt,
+        Other,
+    }
+    use Hangul::*;
+    let class = |ch: char| match ch as u32 {
+        0x1100..=0x115f | 0xa960..=0xa97c => Leading,
+        0x1160..=0x11a7 | 0xd7b0..=0xd7c6 => Vowel,
+        0x11a8..=0x11ff | 0xd7cb..=0xd7fb => Trailing,
+        n @ 0xac00..=0xd7a3 if (n - 0xac00).is_multiple_of(28) => Lv,
+        0xac00..=0xd7a3 => Lvt,
+        _ => Other,
+    };
+    matches!(
+        (class(left), class(right)),
+        (Leading, Leading | Vowel | Lv | Lvt)
+            | (Vowel | Lv, Vowel | Trailing)
+            | (Trailing | Lvt, Trailing)
+    )
 }
 
 /// Runs that can move to the next line as a unit. There is no extra scanning for ASCII
@@ -300,11 +330,11 @@ impl Font {
         }
     }
 
-    /// Whether the face needs a fallback for this CJK character.
+    /// Whether the face needs the runtime outline fallback for this character.
     pub fn needs_cjk_fallback(&self, c: char) -> bool {
-        // Chinese text also uses shared typography outside the CJK blocks.
-        // The legacy code pages already carry these marks in their own slots.
-        (is_cjk(c) || matches!(c, '‘' | '’' | '“' | '”' | '…' | '—' | '–' | '·'))
+        // CJK text also uses punctuation and symbols outside the CJK blocks.
+        // Keep any glyph already supplied by the primary face.
+        (is_cjk(c) || matches!(c, '‘' | '’' | '“' | '”' | '…' | '—' | '–' | '·' | '★' | '☆'))
             && self.native_glyph(c).is_none()
     }
 
@@ -448,7 +478,7 @@ mod tests {
     #[test]
     fn cjk_fallback_keeps_the_primary_glyphs() {
         let mut f = Font::parse(&file()).unwrap();
-        for c in ['中', '。', '！'] {
+        for c in ['中', '。', '！', '★', '☆'] {
             assert!(f.needs_cjk_fallback(c));
             assert_eq!(&f.glyph_of(c), f.glyph(b'?'));
         }
@@ -537,6 +567,26 @@ mod tests {
             lines[0].glyphs.iter().map(|g| g.x).collect::<Vec<_>>(),
             [0.0, 16.0, 32.0]
         );
+    }
+
+    #[test]
+    fn korean_wrap_keeps_jamo_syllable_blocks_and_punctuation_together() {
+        let mut font = Font::parse(&file()).unwrap();
+        let glyph = Glyph {
+            width: 16.0,
+            ..Glyph::default()
+        };
+        for ch in "한글ㄱ。".chars() {
+            assert!(font.needs_cjk_fallback(ch));
+            font.extra.insert(ch, glyph);
+        }
+        let lines = font.lines_with_cjk_wrap("Map 12 한글。ㄱ", Some(64.0), true);
+        assert_eq!(
+            lines.iter().map(|line| line.text_spaced(&font)).collect::<Vec<_>>(),
+            ["Map 12", "한", "글。", "ㄱ"]
+        );
+        assert_eq!(lines[2].width, 64.0);
+        assert_eq!(lines[2].width, font.width("글。"));
     }
 
     #[test]
