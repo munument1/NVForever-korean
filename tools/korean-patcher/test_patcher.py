@@ -93,7 +93,7 @@ class InstallTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        base = Path(self.temporary.name)
+        base = Path(self.temporary.name).resolve()  # Windows may return an 8.3 short TEMP path.
         self.home = base / "설치/korean-home"
         home_patch = patch.object(patcher, "launcher_home", return_value=self.home)
         home_patch.start()

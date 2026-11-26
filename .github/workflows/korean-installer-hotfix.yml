@@ -3,7 +3,9 @@ name: Korean installer hotfix 2026.11.26.2
 on:
   push:
     branches: [codex/korean-installer-release]
-    paths: [.github/workflows/korean-installer-hotfix.yml]
+    paths:
+      - .github/workflows/korean-installer-hotfix.yml
+      - tools/korean-patcher/**
 
 permissions:
   contents: read
