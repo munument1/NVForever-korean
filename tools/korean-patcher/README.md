@@ -1,0 +1,45 @@
+# NVForever 한국어 패쳐
+
+Windows x64에서 NVForever 설치 폴더와 Fallout New Vegas 폴더를 선택해 한국어 지원 실행 파일, Pretendard Bold, 한국어 UI와 ESM 번역을 적용합니다.
+
+현재 패키지는 `d7b18d306` 소스의 한국어 테스트 빌드를 설치합니다. 기존 NVForever 실행 파일은 이 빌드로 교체됩니다. 새 공식 버전의 기능을 사용하려면 해당 버전에 한국어 변경을 반영해 패키지를 다시 만들어야 합니다.
+
+## 사용
+
+1. `NVForeverKoreanPatcher.exe` 하나를 내려받습니다. 한국어 지원 빌드, 번역, 폰트, 라이선스와 대응 소스가 실행 파일에 포함되어 있습니다.
+2. 게임을 종료하고 `NVForeverKoreanPatcher.exe`를 실행합니다.
+3. `nvforever.exe`가 있는 설치 폴더와 `Data/FalloutNV.esm`이 있는 게임 폴더를 지정합니다.
+4. ESM 번역을 적용하려면 체크를 유지하고 `패치 적용`을 누릅니다.
+5. 완료 후 `한국어로 실행`을 누릅니다. 이후에는 기존 `nvforever-launcher.exe`나 기존 바로가기로 런처를 열고 Play를 누르면 됩니다.
+
+설치 폴더의 `korean-home`에 UTF-8, 한국어 UI, Pretendard Bold 및 원본 게임 경로를 설정합니다. 기존 `nvforever-launcher.exe`에 작은 실행 연결 프로그램을 넣고 원본 런처는 `nvforever-launcher-original.exe`로 보관합니다. 기존 실행 파일을 열면 이 홈을 환경 변수로 지정해 보관된 공식 런처를 실행하고, Play로 시작한 게임도 같은 홈을 사용합니다. 문서 폴더의 기본 홈에 대한 Windows 제어된 폴더 액세스 차단이 실제 확인되어 쓰기 위치를 설치 폴더로 지정했습니다. 기존 세이브는 복사본을 `korean-home/saves`에 가져오세요. 추가 모드와 MO2 가상 파일 시스템을 사용하는 실행은 별도 설정이 필요합니다.
+
+복원은 같은 설치·게임 경로를 선택하고 `원본 복원`을 누릅니다. 원본은 설치 폴더의 `.nvf-kr-backups`에 보관됩니다. `.nvf-kr-patch.json`은 복원 기록이므로 보관하세요. 설정 파일과 런처 변경도 복원 기록에 포함됩니다. 설치 도중 종료된 경우에도 복원을 먼저 실행하세요. 패치 이후 공식 업데이트나 게임 실행으로 파일이 달라졌다면, 달라진 파일을 별도로 보관한 뒤 백업 파일과 복원 기록을 확인해야 합니다. 복원은 변경된 파일을 감지하면 중단합니다.
+
+설치 도중 오류가 나면 자동 복원을 시도합니다. 파일 잠금·디스크 문제로 복원도 실패하면 백업과 기록을 유지하므로 문제 해결 후 다시 복원할 수 있습니다. 백업에는 ESM 복사본과 설치 준비 파일이 있으므로 여유 공간을 확보하세요.
+
+## 번역 범위와 검증
+
+제공받은 한국어 ESM 10개에서 번역을 추출했습니다. FormID, 레코드 종류, 필드 종류와 순번으로 문자열을 찾습니다. 비텍스트 필드·필드 순서·의미 있는 헤더가 일치하는지도 검사합니다. 압축 여부와 편집 도구의 버전 관리 시각 정보는 비교에서 제외합니다. 레코드 누락이나 구조 불일치가 있으면 파일 교체 전에 중단합니다.
+
+이름 FULL, 설명 DESC, 퀘스트 일지·목표, 대사·질문, 터미널 메뉴·결과, 메시지 버튼, 진영 계급, 탄약 약칭, 무기 VATS 이름, 지역 지도 이름, 텍스트 NOTE 및 문자열 GMST를 지원합니다. 스크립트 소스·바이트코드 안의 문자열, 모델·아이콘 경로, 음성은 별도로 처리해야 합니다. 현재 원본 DeadMoney.esm의 UTF-8이 아닌 필드 1개는 추출에서 제외했습니다.
+
+릴리스 설치기는 제공받은 한국어 ESM에서 추출한 문자열 패키지를 포함하며, 일부 영어 문자열도 포함합니다. 이 README의 MIT 라이선스 안내는 설치기 코드에 적용됩니다. 번역·게임 텍스트의 권리는 각 권리자에게 있습니다. Git 소스 트리에는 게임 ESM과 추출 번역 데이터를 추가하지 않습니다.
+
+한국어 ESM 10개의 문자열 91,345개를 재적용해 원본 파일이 바뀌지 않는지 확인했습니다. 본편 ESM 복사본의 문자열을 테스트용 영어로 바꾼 뒤 한국어 적용과 복원을 검증했습니다. 메인 메뉴 실행 및 정상 종료, 런처 연결과 설정 전달도 확인했습니다. 깨끗한 공식 영문 ESM과의 구조 호환성 및 실제 장기 플레이는 별도 검증이 필요합니다.
+
+## 소스와 패키지 생성
+
+Python 3.11 이상에서 `python patcher.py`로 실행할 수 있습니다. 소스 실행 시 패키지 위치는 `dist/NVForever-Korean-Patcher/package`입니다. `python -m unittest -v`로 파일 변환, 손상 입력, 설치·복원, 실패 복원을 검사합니다.
+
+`build_package.py`에 `--game`, `--engine`, `--fonts`, `--source`, `--output`, `--build`, `--launcher`를 지정하면 오프라인 패키지를 생성합니다. `--source`는 해당 NVForever 실행 파일의 대응 소스 ZIP입니다. `--launcher`는 `rustc --edition=2024 -C opt-level=2 -C strip=symbols launcher.rs -o NVForever-Korean-Launcher.exe`로 빌드한 실행 파일입니다. 새 출력 폴더를 사용하세요. 실행 파일·스키마·lang/ko.toml·LICENSE와 Pretendard 폰트·라이선스가 필요합니다.
+
+Windows 실행 파일은 다음으로 만듭니다.
+
+```powershell
+python -m PyInstaller --noconfirm --distpath dist/standalone NVForeverKoreanPatcher.spec
+```
+
+설치기를 실행하면 포함된 리소스를 Windows 임시 폴더에 풀어 사용하고 종료 시 정리합니다. 임시 추출과 설치 백업에 필요한 여유 공간을 확보하세요. `NVForeverKoreanPatcher.exe --verify`로 내장 패키지의 해시 검사를 실행할 수 있습니다. 패키지의 SHA-256은 전송 손상 확인용입니다. 신뢰할 수 있는 경로로 받은 패키지를 사용하세요. 인터넷에서 새 공식 버전을 감지하거나 소스를 자동으로 병합·빌드하는 기능은 현재 포함하지 않습니다.
+
+NVForever는 GPL-3.0에 따라 LICENSE와 대응 소스를 함께 제공합니다. Pretendard는 포함된 SIL Open Font License를 따릅니다. 패쳐 Python 소스는 MIT 라이선스를 따릅니다.
