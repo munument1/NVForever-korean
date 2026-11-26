@@ -189,7 +189,8 @@ def install_package(install, game, package, apply_text=True, log=print):
             result, stats = translate(target.read_bytes(), catalog)
             log(f"{name}  변경 {stats['changed']} / 동일 {stats['already']} / 구조 불일치 {stats['incompatible']} / 없음 {stats['missing']}")
             if stats["incompatible"] or stats["missing"]:
-                raise ValueError(f"{name}의 레코드 구조가 번역 원본과 다릅니다. 설치를 중단했습니다.")
+                log(f"경고  {name}: 구조 불일치 레코드 {stats['incompatible']}개는 원본 유지, "
+                    f"누락 레코드 {stats['missing']}개는 건너뜁니다. 일치하는 문자열만 적용합니다.")
             stage("game", f"Data/{name}", result)
             summary.append({"plugin": name, **stats})
     stage("home", "NVForever.ini", configured_ini(home / "NVForever.ini", install, game))
@@ -216,6 +217,9 @@ def install_package(install, game, package, apply_text=True, log=print):
         log("설치 실패. 원본 복원을 시도합니다.")
         restore(install, game, log)
         raise
+    skipped = sum(item["incompatible"] + item["missing"] for item in summary)
+    if skipped:
+        log(f"주의  구조 불일치 또는 누락 레코드 {skipped}개를 건너뛰었습니다. 일부 번역이 적용되지 않았습니다.")
     log(f"설치 완료. 적용 빌드 {manifest['build']}. 아래 실행 버튼으로 시작하세요.")
 
 

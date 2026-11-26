@@ -129,6 +129,55 @@ class InstallTests(unittest.TestCase):
             self.assertEqual((self.game / "Data/FalloutNV.esm").read_bytes(), plugin("English"))
             self.assertEqual(plugin_path.stat().st_mtime_ns, original_mtime)
 
+    def test_partial_translation_skips_incompatible_and_missing_records(self):
+        prefix = record(b"TES4", 0, b"")
+
+        def named(form, text, extra=b"", compressed=False):
+            return record(b"WEAP", form, field(b"FULL", text.encode("utf-8") + b"\0") + extra, compressed)
+
+        already = named(2, "이미 번역")
+        incompatible = named(3, "Keep original", field(b"DATA", b"\x01"), True)
+        original = prefix + named(1, "English") + already + incompatible
+        translated = prefix + named(1, "한국어") + already + named(3, "적용 금지") + named(4, "누락")
+        expected = prefix + named(1, "한국어") + already + incompatible
+        plugin_path = self.game / "Data/FalloutNV.esm"
+        plugin_path.write_bytes(original)
+        original_mtime = plugin_path.stat().st_mtime_ns
+        relative = "translations/FalloutNV.esm.json"
+        catalog_path = self.package / relative
+        patcher.write_json(catalog_path, extract(translated))
+        manifest = patcher.read_json(self.package / "manifest.json")
+        manifest["files"][relative] = digest(catalog_path.read_bytes())
+        patcher.write_json(self.package / "manifest.json", manifest)
+
+        messages = []
+        patcher.install_package(self.install, self.game, self.package, log=messages.append)
+        self.assertEqual(plugin_path.read_bytes(), expected)
+        self.assertEqual(plugin_path.stat().st_mtime_ns, original_mtime)
+        self.assertEqual((self.install / "nvforever.exe").read_bytes(), b"patched")
+        journal = patcher.read_json(self.install / patcher.STATE)
+        self.assertEqual(journal["status"], "installed")
+        self.assertEqual(journal["summary"], [{"plugin": "FalloutNV.esm", "changed": 1,
+                                                "already": 1, "incompatible": 1, "missing": 1}])
+        self.assertTrue(any("구조 불일치 레코드 1개" in message and "누락 레코드 1개" in message for message in messages))
+        self.assertTrue(any("레코드 2개를 건너뛰었습니다" in message for message in messages))
+        self.assertTrue(any("설치 완료" in message for message in messages))
+        patcher.restore(self.install, self.game, lambda message: None)
+        self.assertEqual(plugin_path.read_bytes(), original)
+        self.assertEqual(plugin_path.stat().st_mtime_ns, original_mtime)
+        self.assertEqual((self.install / "nvforever.exe").read_bytes(), b"original")
+        self.assertFalse((self.install / patcher.STATE).exists())
+
+    def test_malformed_esm_still_aborts_install(self):
+        plugin_path = self.game / "Data/FalloutNV.esm"
+        malformed = plugin("English")[:-1]
+        plugin_path.write_bytes(malformed)
+        with self.assertRaises(ValueError):
+            self.install_patch()
+        self.assertEqual(plugin_path.read_bytes(), malformed)
+        self.assertEqual((self.install / "nvforever.exe").read_bytes(), b"original")
+        self.assertFalse((self.install / patcher.STATE).exists())
+
     def test_package_tampering_changes_nothing(self):
         (self.package / "payload/nvforever.exe").write_bytes(b"tampered")
         with self.assertRaises(ValueError):
