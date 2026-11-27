@@ -103,12 +103,12 @@ pub fn exit_message(code: Option<i32>, success: bool, logs: Option<&Path>) -> Op
     let how = match code {
         // Windows reports a crash as a large unsigned code (0xC0000005): shown in hex.
         Some(c) if !(-255..=255).contains(&c) => format!("exit code 0x{:08X}", c as u32),
-        Some(c) => format!("exit code {c}"),
-        None => "no exit code".to_string(),
+          Some(c) => fnv_util::words::trf("exit code {code}", &[("code", &c)]),
+          None => fnv_util::words::tr("no exit code").to_string(),
     };
     Some(match logs {
-        Some(l) => format!("The game stopped with an error ({how}). Its logs are in {}.", l.display()),
-        None => format!("The game stopped with an error ({how})."),
+          Some(l) => fnv_util::words::trf("The game stopped with an error ({how}). Its logs are in {logs}.", &[("how", &how), ("logs", &l.display())]),
+          None => fnv_util::words::trf("The game stopped with an error ({how}).", &[("how", &how)]),
     })
 }
 

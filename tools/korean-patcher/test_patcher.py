@@ -146,10 +146,6 @@ class InstallTests(unittest.TestCase):
         self.install_patch()
         self.assertEqual(launcher.read_bytes(), b"launcher bridge")
         self.assertEqual((self.install / "nvforever-launcher-original.exe").read_bytes(), b"official launcher")
-        with patch.object(patcher.subprocess, "Popen") as spawn:
-            patcher.play(self.install, self.game)
-        self.assertEqual(spawn.call_args.args[0], [str(launcher)])
-        self.assertEqual(spawn.call_args.kwargs["env"]["NVFOREVER_HOME"], str(self.home))
         patcher.restore(self.install, self.game, lambda message: None)
         self.assertEqual(launcher.read_bytes(), b"official launcher")
         self.assertFalse((self.install / "nvforever-launcher-original.exe").exists())

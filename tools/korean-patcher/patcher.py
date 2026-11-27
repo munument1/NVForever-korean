@@ -6,7 +6,6 @@ import os
 from pathlib import Path, PurePosixPath
 import queue
 import shutil
-import subprocess
 import sys
 import tempfile
 import threading
@@ -216,26 +215,7 @@ def install_package(install, game, package, apply_text=True, log=print):
         log("설치 실패. 원본 복원을 시도합니다.")
         restore(install, game, log)
         raise
-    log(f"설치 완료. 적용 빌드 {manifest['build']}. 아래 실행 버튼으로 시작하세요.")
-
-
-def play(install, game):
-    if not (install / STATE).is_file():
-        raise ValueError("한국어 패치를 먼저 적용하세요")
-    journal = read_json(install / STATE)
-    if journal["status"] != "installed":
-        raise ValueError("설치가 중단되었습니다. 복원 후 다시 적용하세요")
-    if digest((install / "nvforever.exe").read_bytes()) != journal["engine_sha256"]:
-        raise ValueError("실행 파일이 다른 버전으로 바뀌었습니다")
-    home = Path(journal.get("runtime_home", journal.get("home", install / "korean-home")))
-    env = dict(os.environ, NVFOREVER_HOME=str(home), NVF_CODE_PAGE="65001")
-    env.pop("NVF_LANG_DIR", None)
-    launcher = install / "nvforever-launcher.exe"
-    if launcher.is_file():
-        subprocess.Popen([str(launcher)], cwd=install, env=env)
-    else:
-        subprocess.Popen([str(install / "nvforever.exe"), "--data", str(game / "Data")],
-                         cwd=install, env=env)
+    log(f"설치 완료. 적용 빌드 {manifest['build']}. 기존 nvforever-launcher.exe를 열고 게임 시작을 누르세요.")
 
 
 def gui():
@@ -265,7 +245,7 @@ def gui():
         ttk.Button(row, text="찾기", command=browse).pack(side="right", padx=(6, 0))
     apply_text = tk.BooleanVar(value=True)
     ttk.Checkbutton(frame, text="본편·설치된 DLC의 ESM에 추출한 UTF-8 번역 적용", variable=apply_text).pack(anchor="w", pady=10)
-    ttk.Label(frame, text="설정·세이브는 설치 폴더의 korean-home을 사용합니다. 설치 후 기존 nvforever-launcher.exe를 열고 Play를 누르세요.", wraplength=750).pack(anchor="w")
+    ttk.Label(frame, text="설정·세이브는 설치 폴더의 korean-home을 사용합니다. 설치 후 기존 nvforever-launcher.exe를 열고 게임 시작을 누르세요.", wraplength=750).pack(anchor="w")
     row = ttk.Frame(frame)
     row.pack(fill="x", pady=10)
     output = tk.Text(frame, height=10, state="disabled", wrap="word")
@@ -300,17 +280,15 @@ def gui():
             try:
                 if kind == "install":
                     install_package(install, game, package, text_enabled, messages.put)
-                elif kind == "restore":
-                    restore(install, game, messages.put)
                 else:
-                    play(install, game)
+                    restore(install, game, messages.put)
             except Exception as error:
                 messages.put(f"오류  {error}")
             finally:
                 messages.put(None)
         threading.Thread(target=worker, daemon=False).start()
 
-    for label, kind in [("패치 적용", "install"), ("원본 복원", "restore"), ("한국어로 실행", "play")]:
+    for label, kind in [("패치 적용", "install"), ("원본 복원", "restore")]:
         button = ttk.Button(row, text=label, command=lambda k=kind: action(k))
         button.pack(side="left", padx=(0, 8))
         buttons.append(button)

@@ -10,9 +10,9 @@ Windows x64에서 NVForever 설치 폴더와 Fallout New Vegas 폴더를 선택�
 2. 게임을 종료하고 `NVForeverKoreanPatcher.exe`를 실행합니다.
 3. `nvforever.exe`가 있는 설치 폴더와 `Data/FalloutNV.esm`이 있는 게임 폴더를 지정합니다.
 4. ESM 번역을 적용하려면 체크를 유지하고 `패치 적용`을 누릅니다.
-5. 완료 후 `한국어로 실행`을 누릅니다. 이후에는 기존 `nvforever-launcher.exe`나 기존 바로가기로 런처를 열고 Play를 누르면 됩니다.
+5. 완료 후 기존 `nvforever-launcher.exe`나 기존 바로가기로 런처를 열고 `게임 시작`을 누릅니다. 설치기에는 패치 적용과 원본 복원 버튼이 있습니다.
 
-설치 폴더의 `korean-home`에 UTF-8, 한국어 UI, Pretendard Bold 및 원본 게임 경로를 설정합니다. 기존 `nvforever-launcher.exe`에 작은 실행 연결 프로그램을 넣고 원본 런처는 `nvforever-launcher-original.exe`로 보관합니다. 기존 실행 파일을 열면 이 홈을 환경 변수로 지정해 보관된 공식 런처를 실행하고, Play로 시작한 게임도 같은 홈을 사용합니다. 문서 폴더의 기본 홈에 대한 Windows 제어된 폴더 액세스 차단이 실제 확인되어 쓰기 위치를 설치 폴더로 지정했습니다. 기존 세이브는 복사본을 `korean-home/saves`에 가져오세요. 추가 모드와 MO2 가상 파일 시스템을 사용하는 실행은 별도 설정이 필요합니다.
+설치 폴더의 `korean-home`에 UTF-8, 한국어 UI, Pretendard Bold 및 원본 게임 경로를 설정합니다. 기존 `nvforever-launcher.exe`를 한국어 UI를 적용한 런처로 교체하고 원본은 `nvforever-launcher-original.exe`로 보관합니다. 런처는 설치 폴더의 `korean-home`을 선택해 게임에도 전달합니다. 홈·설정·모드·게임 폴더 화면과 일반 설정을 번역하며, 뉴스·업데이트 로그 본문과 Tweaks 세부 항목은 기존 내용을 표시합니다. 문서 폴더의 기본 홈에 대한 Windows 제어된 폴더 액세스 차단이 실제 확인되어 쓰기 위치를 설치 폴더로 지정했습니다. 기존 세이브는 복사본을 `korean-home/saves`에 가져오세요. 추가 모드와 MO2 가상 파일 시스템을 사용하는 실행은 별도 설정이 필요합니다.
 
 복원은 같은 설치·게임 경로를 선택하고 `원본 복원`을 누릅니다. 원본은 설치 폴더의 `.nvf-kr-backups`에 보관됩니다. `.nvf-kr-patch.json`은 복원 기록이므로 보관하세요. 설정 파일과 런처 변경도 복원 기록에 포함됩니다. 설치 도중 종료된 경우에도 복원을 먼저 실행하세요. 패치 이후 공식 업데이트나 게임 실행으로 파일이 달라졌다면, 달라진 파일을 별도로 보관한 뒤 백업 파일과 복원 기록을 확인해야 합니다. 복원은 변경된 파일을 감지하면 중단합니다.
 
@@ -32,7 +32,7 @@ Windows x64에서 NVForever 설치 폴더와 Fallout New Vegas 폴더를 선택�
 
 Python 3.11 이상에서 `python patcher.py`로 실행할 수 있습니다. 소스 실행 시 패키지 위치는 `dist/NVForever-Korean-Patcher/package`입니다. `python -m unittest -v`로 파일 변환, 손상 입력, 설치·복원, 실패 복원을 검사합니다.
 
-`build_package.py`에 `--game`, `--engine`, `--fonts`, `--source`, `--output`, `--build`, `--launcher`를 지정하면 오프라인 패키지를 생성합니다. `--source`는 해당 NVForever 실행 파일의 대응 소스 ZIP입니다. `--launcher`는 `rustc --edition=2024 -C opt-level=2 -C strip=symbols launcher.rs -o NVForever-Korean-Launcher.exe`로 빌드한 실행 파일입니다. 새 출력 폴더를 사용하세요. 실행 파일·스키마·lang/ko.toml·LICENSE와 Pretendard 폰트·라이선스가 필요합니다.
+`build_package.py`에 `--game`, `--engine`, `--fonts`, `--source`, `--output`, `--build`, `--launcher`를 지정하면 오프라인 패키지를 생성합니다. `--source`는 해당 NVForever 실행 파일의 대응 소스 ZIP입니다. `--launcher`는 저장소 루트에서 `cargo build -p nvf-launcher --release --locked`로 빌드한 `target/release/nvforever-launcher.exe`입니다. 새 출력 폴더를 사용하세요. 실행 파일·스키마·lang/ko.toml·LICENSE와 Pretendard 폰트·라이선스가 필요합니다.
 
 Windows 실행 파일은 다음으로 만듭니다.
 

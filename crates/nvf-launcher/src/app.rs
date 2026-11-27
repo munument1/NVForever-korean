@@ -1,6 +1,7 @@
 //! The launcher's window: Home (news), Settings, Mods and Game folder pages beside a bar
 //! that starts the game.
 
+use fnv_util::words::{tr, tr_str, trf};
 use crate::catalog::{self, Catalog, Kind, Row};
 use crate::launch::{self, Start};
 use crate::news::{self, Post, Source};
@@ -265,8 +266,8 @@ impl App {
         // The folder the launcher runs from, whether or not nvforever is still beside it.
         if let Some(dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(PathBuf::from)) {
             match update::resume_interrupted(&dir, app.game().as_ref()) {
-                Some(Ok(v)) => app.message = Some((format!("An update to v{v} was interrupted; it has been finished."), false)),
-                Some(Err(e)) => app.message = Some((format!("An interrupted update could not be finished: {e}. Download the release from its page."), true)),
+                Some(Ok(v)) => app.message = Some((trf("An update to v{v} was interrupted; it has been finished.", &[("v", &(v))]), false)),
+                Some(Err(e)) => app.message = Some((trf("An interrupted update could not be finished: {e}. Download the release from its page.", &[("e", &(e))]), true)),
                 None => {}
             }
         }
@@ -277,9 +278,9 @@ impl App {
                     // The version the swap wrote (an archive without a launcher leaves this one).
                     let installed = install_dir(app.game().as_ref()).ok().and_then(|d| update::read_manifest(&d)).map_or_else(|| version().to_string(), |m| m.version);
                     app.message = Some(if a == "--updated" {
-                        (format!("Updated to v{installed}. Your saves, settings and mods are as they were."), false)
+                        (trf("Updated to v{installed}. Your saves, settings and mods are as they were.", &[("installed", &(installed))]), false)
                     } else {
-                        (format!("Rolled back to v{installed}."), false)
+                        (trf("Rolled back to v{installed}.", &[("installed", &(installed))]), false)
                     });
                 }
                 _ => {}
@@ -305,6 +306,9 @@ impl App {
 
     fn reload_ini(&mut self) {
         self.ini_text = self.ini_path().and_then(|p| std::fs::read_to_string(p).ok()).unwrap_or_default();
+        if let Some(language) = ini_get(&self.ini_text, "Settings", "language") {
+            fnv_util::words::set_language(&language);
+        }
         self.stored = ini_pairs(&self.ini_text, "Settings").into_iter().collect();
         self.edits.clear();
         self.start_edit = crate::start::Fields::read(&self.ini_text);
@@ -369,7 +373,7 @@ impl App {
             Ok(()) => {
                 self.reload_ini();
                 if let Some(d) = done {
-                    self.message = Some((d.to_string(), false));
+                    self.message = Some((tr_str(d).to_string(), false));
                 }
             }
             Err(e) => {
@@ -387,9 +391,9 @@ impl App {
             let shot = fnv_save::read_header(&path).ok().map(|s| s.shot).filter(|s| !s.is_empty()).map(Arc::from);
             let name = if hd.player_name.is_empty() { path.file_stem().unwrap_or_default().to_string_lossy().into_owned() } else { hd.player_name.clone() };
             let hours = hd.play_seconds / 3600.0;
-            let mut parts = vec![format!("Level {}", hd.level)];
+            let mut parts = vec![trf("Level {arg0}", &[("arg0", &(hd.level))])];
             parts.extend(shown_place(&hd.location).map(str::to_string));
-            parts.push(format!("{hours:.0} h played"));
+            parts.push(trf("{hours} h played", &[("hours", &(format!("{:.0}", hours)))]));
             let detail = parts.join(" · ");
             NewestSave { path, name, detail, shot }
         });
@@ -503,7 +507,7 @@ impl App {
             return;
         }
         let Some(exe) = self.exe.clone() else {
-            self.message = Some((format!("{} was not found beside the launcher: pick it on the Game folder page.", launch::GAME_EXE), true));
+            self.message = Some((trf("{arg0} was not found beside the launcher: pick it on the Game folder page.", &[("arg0", &(launch::GAME_EXE))]), true));
             return;
         };
         match launch::spawn(&exe, &start) {
@@ -612,18 +616,18 @@ impl App {
                 ui.vertical(|ui| {
                     ui.add_space(2.0);
                     ui.label(RichText::new("NVForever").font(crate::fonts::title(22.0)).color(GOLD));
-                    ui.label(RichText::new("Launcher").small().color(WEAK));
+                    ui.label(RichText::new(tr("Launcher")).small().color(WEAK));
                 });
                 self.countdown(ui);
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if let Some(h) = &self.home {
-                        if ui.small_button("Open folder").on_hover_text("Open NVForever's folder (settings, saves, logs)").clicked() {
+                        if ui.small_button(tr("Open folder")).on_hover_text(tr("Open NVForever's folder (settings, saves, logs)")).clicked() {
                             launch::open_folder(&h.root);
                         }
                     }
                     if let Some(l) = &self.latest {
-                        let b = egui::Button::new(RichText::new(format!("Update to v{}", l.version)).strong().color(theme::ON_GOLD)).fill(GOLD);
-                        if ui.add(b).on_hover_text(format!("v{} is out (this is v{})", l.version, version())).clicked() {
+                        let b = egui::Button::new(RichText::new(trf("Update to v{arg0}", &[("arg0", &(l.version))])).strong().color(theme::ON_GOLD)).fill(GOLD);
+                        if ui.add(b).on_hover_text(trf("v{arg0} is out (this is v{arg1})", &[("arg0", &(l.version)), ("arg1", &(version()))])).clicked() {
                             self.upd_open = true;
                         }
                     }
@@ -638,9 +642,9 @@ impl App {
         let Some(n) = &self.next else { return };
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64);
         let (lead, time) = match n.at {
-            Some(at) if at > now => (format!("NVForever {} releases in", n.version), Some(news::countdown_text(at - now))),
+            Some(at) if at > now => (trf("NVForever {arg0} releases in", &[("arg0", &(n.version))]), Some(news::countdown_text(at - now))),
             Some(_) => return,
-            None => (format!("NVForever {} is coming soon", n.version), None),
+            None => (trf("NVForever {arg0} is coming soon", &[("arg0", &(n.version))]), None),
         };
         // The middle of the whole bar, not of what the row has left after the logo.
         let rect = ui.clip_rect();
@@ -688,33 +692,33 @@ impl App {
                 ui.label(RichText::new(format!("v{}", version())).size(20.0).strong().color(WEAK));
                 if let Some((m, bad)) = &self.message {
                     ui.add_space(16.0);
-                    ui.label(RichText::new(m).color(if *bad { BAD } else { GOOD }));
+                    ui.label(RichText::new(tr_str(m)).color(if *bad { BAD } else { GOOD }));
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     ui.add_enabled_ui(!running, |ui| {
-                        ui.menu_button(RichText::new("More").size(15.0), |ui| {
-                            if ui.button("New game").clicked() {
+                        ui.menu_button(RichText::new(tr("More")).size(15.0), |ui| {
+                            if ui.button(tr("New game")).clicked() {
                                 self.start(ctx, Start::NewGame);
                                 ui.close();
                             }
-                            if ui.button("Main menu").clicked() {
+                            if ui.button(tr("Main menu")).clicked() {
                                 self.start(ctx, Start::MainMenu);
                                 ui.close();
                             }
-                            if ui.button("Explorer (free camera)").clicked() {
+                            if ui.button(tr("Explorer (free camera)")).clicked() {
                                 self.start(ctx, Start::Explorer);
                                 ui.close();
                             }
                             ui.separator();
                             let mut close = self.launcher_flag("CloseOnPlay", false);
-                            if ui.checkbox(&mut close, "Close the launcher when the game starts").changed() {
+                            if ui.checkbox(&mut close, tr("Close the launcher when the game starts")).changed() {
                                 self.set_launcher_key("CloseOnPlay", if close { "1" } else { "0" });
                             }
                         });
                         let (title, sub, start) = match &self.newest {
                             _ if running => ("Running…".to_string(), "the game is open".to_string(), None),
                             Some(s) => ("Continue".to_string(), format!("{} · {}", s.name, s.detail), Some(Start::Load(s.path.clone()))),
-                            None => ("Play".to_string(), "new game from the main menu".to_string(), Some(Start::MainMenu)),
+                            None => ("Play game".to_string(), "new game from the main menu".to_string(), Some(Start::MainMenu)),
                         };
                         if big_button(ui, &title, &sub, true).clicked() {
                             if let Some(s) = start {
@@ -738,7 +742,7 @@ const REPO: &str = "https://github.com/LootJunkieAzza/NVForever";
 
 /// A page button of the left bar; the open page's has a gold edge and mark.
 fn nav_button(ui: &mut egui::Ui, name: &str, on: bool) -> egui::Response {
-    let text = RichText::new(name).font(crate::fonts::title(15.0)).color(if on { GOLD } else { theme::TEXT });
+    let text = RichText::new(tr_str(name)).font(crate::fonts::title(15.0)).color(if on { GOLD } else { theme::TEXT });
     let b = egui::Button::new(text)
         .min_size(Vec2::new(ui.available_width(), 42.0))
         .fill(if on { theme::SELECTED } else { theme::BUTTON })
@@ -753,7 +757,7 @@ fn nav_button(ui: &mut egui::Ui, name: &str, on: bool) -> egui::Response {
 
 /// A button in the site's primary style when `on` (gold, dark words, 9:1), else a plain one.
 fn gold_button(text: &str, on: bool) -> egui::Button<'static> {
-    let words = RichText::new(text.to_string()).strong();
+    let words = RichText::new(tr_str(text).to_string()).strong();
     if on {
         egui::Button::new(words.color(theme::ON_GOLD)).fill(GOLD)
     } else {
@@ -765,6 +769,8 @@ fn gold_button(text: &str, on: bool) -> egui::Button<'static> {
 fn big_button(ui: &mut egui::Ui, title: &str, sub: &str, primary: bool) -> egui::Response {
     let size = Vec2::new(if primary { 280.0 } else { 190.0 }, 58.0);
     let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
+    let title = tr_str(title);
+    let sub = tr_str(sub);
     let enabled = ui.is_enabled();
     let fill = match (primary, resp.hovered() && enabled) {
         (true, true) => theme::GOLD_HOVER,
@@ -864,7 +870,9 @@ fn menu_control(ui: &mut egui::Ui, key: &str, kind: &menu::Kind, v: &str, contro
             let s = if steps.is_empty() {
                 s.custom_formatter(|x, _| format!("{:.0}%", x * 100.0)).custom_parser(|s| s.trim().trim_end_matches('%').parse::<f64>().ok().map(|x| x / 100.0))
             } else {
-                let (shown, typed) = (steps.clone(), steps.clone());
+                let mut shown = steps.clone();
+                for step in &mut shown { step.label = tr_str(&step.label).to_string(); }
+                let typed = shown.clone();
                 // Typed into it: a step's words (any case), else a number.
                 s.custom_formatter(move |x, _| menu::Step::nearest(&shown, x as f32).unwrap_or_default().to_string())
                     .custom_parser(move |t| menu::Step::parse(&typed, t).map(f64::from))
@@ -874,9 +882,9 @@ fn menu_control(ui: &mut egui::Ui, key: &str, kind: &menu::Kind, v: &str, contro
         menu::Kind::List { choices } => {
             let shown = choices.iter().find(|c| c.name == v).map_or(v.to_string(), |c| c.label.clone());
             let mut picked = None;
-            egui::ComboBox::from_id_salt(key).width(control_w - 8.0).selected_text(shown).show_ui(ui, |ui| {
+            egui::ComboBox::from_id_salt(key).width(control_w - 8.0).selected_text(tr_str(&shown)).show_ui(ui, |ui| {
                 for c in choices {
-                    if ui.selectable_label(c.name == v, &c.label).clicked() && c.name != v {
+                    if ui.selectable_label(c.name == v, tr_str(&c.label)).clicked() && c.name != v {
                         picked = Some(c.name.clone());
                     }
                 }
@@ -913,14 +921,14 @@ fn card<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
 impl App {
     fn home_page(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.heading("News");
+            ui.heading(tr("News"));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 let on = self.launcher_flag("News", true);
-                if on && !matches!(self.news_state, NewsState::Loading) && ui.small_button("Refresh").clicked() {
+                if on && !matches!(self.news_state, NewsState::Loading) && ui.small_button(tr("Refresh")).clicked() {
                     self.fetch_news(ui.ctx());
                 }
                 let mut fetch = on;
-                if ui.checkbox(&mut fetch, RichText::new("Fetch news").small()).on_hover_text("Ask nv-forever.com (and GitHub) for the news when the launcher opens").changed() {
+                if ui.checkbox(&mut fetch, RichText::new(tr("Fetch news")).small()).on_hover_text(tr("Ask nv-forever.com (and GitHub) for the news when the launcher opens")).changed() {
                     self.set_launcher_key("News", if fetch { "1" } else { "0" });
                     if fetch {
                         self.fetch_news(ui.ctx());
@@ -931,12 +939,12 @@ impl App {
                 let note = match &self.news_state {
                     NewsState::Off => "news fetching is off".to_string(),
                     NewsState::Loading => "fetching…".to_string(),
-                    NewsState::Shown(Source::Site) => format!("{} posts from nv-forever.com", self.news.len()),
-                    NewsState::Shown(Source::Releases) => format!("{} releases from GitHub", self.news.len()),
+                    NewsState::Shown(Source::Site) => trf("{arg0} posts from nv-forever.com", &[("arg0", &(self.news.len()))]),
+                    NewsState::Shown(Source::Releases) => trf("{arg0} releases from GitHub", &[("arg0", &(self.news.len()))]),
                     NewsState::Shown(Source::Cache) => "saved posts".to_string(),
                     NewsState::Failed(_) => "offline: showing saved posts".to_string(),
                 };
-                let l = ui.label(RichText::new(note).small().color(WEAK));
+                let l = ui.label(RichText::new(tr_str(&note)).small().color(WEAK));
                 if let NewsState::Failed(e) = &self.news_state {
                     l.on_hover_text(e);
                 }
@@ -947,8 +955,8 @@ impl App {
             if self.news.is_empty() {
                 card(ui, |ui| {
                     ui.set_width(ui.available_width());
-                    ui.label(RichText::new("No news yet").size(20.0).color(GOLD));
-                    ui.label("Posts from nv-forever.com and the release notes show here once the launcher has fetched them.");
+                    ui.label(RichText::new(tr("No news yet")).size(20.0).color(GOLD));
+                    ui.label(tr("Posts from nv-forever.com and the release notes show here once the launcher has fetched them."));
                 });
             }
             for i in 0..self.news.len() {
@@ -979,7 +987,7 @@ impl App {
                         CommonMarkViewer::new().show(ui, &mut self.md, text);
                     });
                     ui.horizontal(|ui| {
-                        if cut && ui.button(if open { "Show less" } else { "Read more" }).clicked() {
+                        if cut && ui.button(tr(if open { "Show less" } else { "Read more" })).clicked() {
                             if open {
                                 self.expanded.remove(&i);
                             } else {
@@ -987,7 +995,7 @@ impl App {
                             }
                         }
                         if let Some(url) = &post.url {
-                            if ui.link("Open in the browser").clicked() {
+                            if ui.link(tr("Open in the browser")).clicked() {
                                 launch::open_url(url);
                             }
                         }
@@ -1000,30 +1008,30 @@ impl App {
 
     fn settings_page(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.heading("Settings");
+            ui.heading(tr("Settings"));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 let dirty = !self.edits.is_empty();
                 if ui.add_enabled(dirty, gold_button("Save", dirty)).clicked() {
                     let r = self.save_settings();
                     self.after_write(r, Some("Settings saved: the game uses them at its next start."));
                 }
-                if ui.add_enabled(dirty, egui::Button::new("Undo changes")).clicked() {
+                if ui.add_enabled(dirty, egui::Button::new(tr("Undo changes"))).clicked() {
                     self.edits.clear();
                 }
                 if dirty {
-                    ui.label(RichText::new(format!("{} changed", self.edits.len())).small().color(GOLD));
+                    ui.label(RichText::new(trf("{arg0} changed", &[("arg0", &(self.edits.len()))])).small().color(GOLD));
                 }
             });
         });
         ui.label(
-            RichText::new("The game's own settings page, kept in NVForever.ini. A row the game has not written yet shows its default once you change it in the game.")
+            RichText::new(tr("The game's own settings page, kept in NVForever.ini. A row the game has not written yet shows its default once you change it in the game."))
                 .small()
                 .color(WEAK),
         );
         ui.horizontal_wrapped(|ui| {
             for (i, t) in self.tab_labels.clone().iter().enumerate() {
                 let on = self.tab == i;
-                let b = egui::Button::new(RichText::new(t).strong().color(if on { theme::ON_GOLD } else { theme::TEXT })).fill(if on { GOLD } else { Color32::TRANSPARENT }).stroke(Stroke::NONE);
+                let b = egui::Button::new(RichText::new(tr_str(t)).strong().color(if on { theme::ON_GOLD } else { theme::TEXT })).fill(if on { GOLD } else { Color32::TRANSPARENT }).stroke(Stroke::NONE);
                 if ui.add(b).clicked() {
                     self.tab = i;
                 }
@@ -1058,7 +1066,8 @@ impl App {
                     if heading.as_ref() != Some(&r.heading) {
                         if let Some(h) = &r.heading {
                             ui.add_space(8.0);
-                            ui.label(RichText::new(h.to_uppercase()).small().strong().color(theme::GOLD_TEXT));
+                            let heading = h.split(" › ").map(tr_str).collect::<Vec<_>>().join(" › ");
+                            ui.label(RichText::new(heading.to_uppercase()).small().strong().color(theme::GOLD_TEXT));
                         }
                         heading = Some(r.heading.clone());
                     }
@@ -1069,6 +1078,8 @@ impl App {
     }
 
     fn setting_row(&mut self, ui: &mut egui::Ui, key: &str, label: &str, note: &str, kind: Option<&menu::Kind>, greyed: Option<&str>) {
+        let label = tr_str(label);
+        let note = tr_str(note);
         let stored = self.stored.get(key).cloned();
         let value = self.edits.get(key).cloned().or_else(|| stored.clone());
         Frame::new().fill(CARD).corner_radius(4).inner_margin(Margin::symmetric(12, 8)).show(ui, |ui| {
@@ -1089,7 +1100,7 @@ impl App {
                         ui.label(RichText::new(note).small().color(WEAK));
                     }
                     if let Some(why) = greyed {
-                        ui.label(RichText::new(format!("Greyed out: {why}")).small().color(WEAK));
+                        ui.label(RichText::new(trf("Greyed out: {why}", &[("why", &(why))])).small().color(WEAK));
                     }
                 });
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -1098,7 +1109,7 @@ impl App {
                         return;
                     }
                     let Some(v) = value else {
-                        ui.label(RichText::new("game default").small().color(WEAK)).on_hover_text("Not in NVForever.ini yet: change it once on the game's settings page");
+                        ui.label(RichText::new(tr("game default")).small().color(WEAK)).on_hover_text(tr("Not in NVForever.ini yet: change it once on the game's settings page"));
                         return;
                     };
                     // Not a value: the game shows what was sent and offers "Delete them now"; the
@@ -1108,8 +1119,8 @@ impl App {
                         return;
                     }
                     if crate::display::read_only(key) {
-                        ui.label(RichText::new("set in the game").small().color(WEAK))
-                            .on_hover_text("The game works this out from the rows below; choosing one there sets them all (a preset from the game folder's files).");
+                        ui.label(RichText::new(tr("set in the game")).small().color(WEAK))
+                            .on_hover_text(tr("The game works this out from the rows below; choosing one there sets them all (a preset from the game folder's files)."));
                         ui.label(RichText::new(&v).strong());
                         return;
                     }
@@ -1129,9 +1140,9 @@ impl App {
                         });
                         let shown = at.map_or(v.clone(), |i| choices[i].label.clone());
                         let mut picked = None;
-                        egui::ComboBox::from_id_salt(key).width(control_w - 8.0).selected_text(shown).show_ui(ui, |ui| {
+                        egui::ComboBox::from_id_salt(key).width(control_w - 8.0).selected_text(tr_str(&shown)).show_ui(ui, |ui| {
                             for (i, c) in choices.iter().enumerate() {
-                                if ui.selectable_label(at == Some(i), &c.label).clicked() {
+                                if ui.selectable_label(at == Some(i), tr_str(&c.label)).clicked() {
                                     picked = Some(c.stored.clone());
                                 }
                             }
@@ -1142,9 +1153,9 @@ impl App {
                         // shows as the choice it stands for (catalog::list_value).
                         let v = catalog::list_value(key, &v);
                         let mut t = v.clone();
-                        egui::ComboBox::from_id_salt(key).width(control_w - 8.0).selected_text(t.clone()).show_ui(ui, |ui| {
+                        egui::ComboBox::from_id_salt(key).width(control_w - 8.0).selected_text(tr_str(&t)).show_ui(ui, |ui| {
                             for c in list.iter() {
-                                ui.selectable_value(&mut t, c.to_string(), *c);
+                                ui.selectable_value(&mut t, c.to_string(), tr_str(c));
                             }
                         });
                         (t != v).then_some(t)
@@ -1156,7 +1167,7 @@ impl App {
                         }
                         Kind::Slider => {
                             let mut f: f32 = v.trim().parse().unwrap_or(0.0);
-                            let words: Option<Vec<String>> = self.words.get(key).map(|w| w.iter().map(|s| s.to_string()).collect()).or_else(|| crate::display::steps(key));
+                            let words: Option<Vec<String>> = self.words.get(key).map(|w| w.iter().map(|s| tr_str(s).to_string()).collect()).or_else(|| crate::display::steps(key));
                             let s = match words {
                                 Some(words) => {
                                     let n = words.len();
@@ -1212,14 +1223,14 @@ impl App {
         let sent = self.home.as_ref().is_some_and(crate::reports::any_sent);
         if self.reports_rx.is_some() {
             ui.add(egui::Spinner::new());
-            ui.label(RichText::new("Deleting…").small().color(WEAK));
+            ui.label(RichText::new(tr("Deleting…")).small().color(WEAK));
         } else if sent {
-            if ui.button("Delete them now").clicked() {
+            if ui.button(tr("Delete them now")).clicked() {
                 self.reports_confirm = true;
             }
-            ui.label(RichText::new("Kept on the server").small().color(WEAK));
+            ui.label(RichText::new(tr("Kept on the server")).small().color(WEAK));
         } else {
-            ui.label(RichText::new("None sent from this PC").small().color(WEAK));
+            ui.label(RichText::new(tr("None sent from this PC")).small().color(WEAK));
         }
     }
 
@@ -1228,8 +1239,8 @@ impl App {
         if let Some(r) = self.reports_rx.as_ref().and_then(|rx| rx.try_recv().ok()) {
             self.reports_rx = None;
             self.message = Some(match r {
-                Ok(n) => (format!("The server was asked to delete the reports of {n} install ID(s) from this PC (it removes them within 7 days). Later reports get a new ID."), false),
-                Err(e) => (format!("Could not delete the reports: {e}"), true),
+                Ok(n) => (trf("The server was asked to delete the reports of {n} install ID(s) from this PC (it removes them within 7 days). Later reports get a new ID.", &[("n", &(n))]), false),
+                Err(e) => (trf("Could not delete the reports: {e}", &[("e", &(e))]), true),
             });
             self.reload_ini();
         }
@@ -1238,17 +1249,17 @@ impl App {
         }
         let modal = egui::Modal::new(egui::Id::unique("reports-delete")).frame(Frame::window(&ctx.global_style()).inner_margin(Margin::symmetric(24, 20))).show(ctx, |ui| {
             ui.set_width(460.0);
-            ui.label(RichText::new("Delete your reports?").size(20.0).strong().color(GOLD));
+            ui.label(RichText::new(tr("Delete your reports?")).size(20.0).strong().color(GOLD));
             ui.add_space(8.0);
-            ui.label("NVForever's report server is asked to delete every report this PC sent; it removes them within 7 days. Reports not sent yet are deleted here. Later reports get a new ID, not linked to these.");
+            ui.label(tr("NVForever's report server is asked to delete every report this PC sent; it removes them within 7 days. Reports not sent yet are deleted here. Later reports get a new ID, not linked to these."));
             ui.add_space(4.0);
-            ui.label(RichText::new("This cannot be undone.").color(BAD));
+            ui.label(RichText::new(tr("This cannot be undone.")).color(BAD));
             if running {
-                ui.label(RichText::new("Close the game first: it holds this PC's report ID while it runs.").small().color(WEAK));
+                ui.label(RichText::new(tr("Close the game first: it holds this PC's report ID while it runs.")).small().color(WEAK));
             }
             ui.add_space(12.0);
             ui.horizontal(|ui| {
-                let delete = egui::Button::new(RichText::new("Delete them").strong().color(theme::ON_GOLD)).fill(BAD);
+                let delete = egui::Button::new(RichText::new(tr("Delete them")).strong().color(theme::ON_GOLD)).fill(BAD);
                 if ui.add_enabled(!running, delete).clicked() {
                     if let Some(home) = self.home.clone() {
                         let (tx, rx) = channel();
@@ -1261,7 +1272,7 @@ impl App {
                     }
                     self.reports_confirm = false;
                 }
-                if ui.button("Cancel").clicked() {
+                if ui.button(tr("Cancel")).clicked() {
                     self.reports_confirm = false;
                 }
             });
@@ -1292,13 +1303,13 @@ impl App {
         card(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.label(RichText::new("NVIDIA DLSS").strong().size(17.0));
-            ui.label(RichText::new("An optional upscaler beside FSR 3.1 (and DLSS frame generation on RTX 40 or newer). NVForever ships no NVIDIA file: the four upscaling and four frame generation files come from NVIDIA's own Streamline release, under NVIDIA's licence.").small().color(WEAK));
+            ui.label(RichText::new(tr("An optional upscaler beside FSR 3.1 (and DLSS frame generation on RTX 40 or newer). NVForever ships no NVIDIA file: the four upscaling and four frame generation files come from NVIDIA's own Streamline release, under NVIDIA's licence.")).small().color(WEAK));
             ui.add_space(6.0);
             need(ui, s.windows, "Windows".into());
             let gpu = if s.gpus.is_empty() { "no graphics card named by Windows".to_string() } else { s.gpus.join(", ") };
-            need(ui, s.rtx(), format!("An NVIDIA RTX graphics card with a current driver ({gpu})"));
-            need(ui, s.upscaling == nvf_dlss_files::FILES.len(), format!("Upscaling files: {} of {}", s.upscaling, nvf_dlss_files::FILES.len()));
-            need(ui, s.frame_generation == nvf_dlss_files::FG_FILES.len(), format!("Frame generation files: {} of {}", s.frame_generation, nvf_dlss_files::FG_FILES.len()));
+            need(ui, s.rtx(), trf("An NVIDIA RTX graphics card with a current driver ({gpu})", &[("gpu", &(gpu))]));
+            need(ui, s.upscaling == nvf_dlss_files::FILES.len(), trf("Upscaling files: {arg0} of {arg1}", &[("arg0", &(s.upscaling)), ("arg1", &(nvf_dlss_files::FILES.len()))]));
+            need(ui, s.frame_generation == nvf_dlss_files::FG_FILES.len(), trf("Frame generation files: {arg0} of {arg1}", &[("arg0", &(s.frame_generation)), ("arg1", &(nvf_dlss_files::FG_FILES.len()))]));
             match &s.folder {
                 Ok(f) => ui.label(RichText::new(format!("In {}", f.display())).small().color(WEAK)),
                 Err(e) => ui.label(RichText::new(e.clone()).small().color(BAD)),
@@ -1311,7 +1322,7 @@ impl App {
                     None => egui::ProgressBar::new(0.0).animate(true).text(words),
                 };
                 ui.add(bar);
-                if ui.button("Cancel download").clicked() {
+                if ui.button(tr("Cancel download")).clicked() {
                     if let Some(h) = download::current() {
                         h.cancel();
                     }
@@ -1324,25 +1335,25 @@ impl App {
                 let ok = matches!(p.phase, download::Phase::Done(_));
                 ui.label(RichText::new(words).small().color(if ok { GOOD } else if matches!(p.phase, download::Phase::Cancelled) { WEAK } else { BAD }));
                 if ok {
-                    ui.label(RichText::new("Choose DLSS as the Upscaler below (or in the game's settings).").small().color(WEAK));
+                    ui.label(RichText::new(tr("Choose DLSS as the Upscaler below (or in the game's settings).")).small().color(WEAK));
                 }
             }
             ui.horizontal_wrapped(|ui| {
-                if s.windows && s.folder.is_ok() && !s.complete() && ui.add(gold_button("Download DLSS…", true)).on_hover_text("Shows NVIDIA's licence first; nothing is downloaded before you accept it.").clicked() {
+                if s.windows && s.folder.is_ok() && !s.complete() && ui.add(gold_button("Download DLSS…", true)).on_hover_text(tr("Shows NVIDIA's licence first; nothing is downloaded before you accept it.")).clicked() {
                     self.dlss_licence = true;
                 }
                 if let Ok(f) = &s.folder {
-                    if ui.button("Open dlss folder").on_hover_text("To copy the files in by hand (docs/dlss.md).").clicked() {
+                    if ui.button(tr("Open dlss folder")).on_hover_text(tr("To copy the files in by hand (docs/dlss.md).")).clicked() {
                         match nvf_dlss_files::create_dlss_folder(f) {
                             Ok(()) => launch::open_folder(f),
                             Err(e) => self.message = Some((format!("{}: {e}", f.display()), true)),
                         }
                     }
                 }
-                if ui.button("NVIDIA's release page").clicked() {
+                if ui.button(tr("NVIDIA's release page")).clicked() {
                     launch::open_url(download::RELEASE_PAGE);
                 }
-                if ui.button("Check again").clicked() {
+                if ui.button(tr("Check again")).clicked() {
                     self.dlss = crate::dlss::Status::read(self.exe.as_deref());
                 }
             });
@@ -1358,9 +1369,9 @@ impl App {
         }
         let modal = egui::Modal::new(egui::Id::unique("dlss-licence")).frame(Frame::window(&ctx.global_style()).inner_margin(Margin::symmetric(24, 20))).show(ctx, |ui| {
             ui.set_width(640.0);
-            ui.label(RichText::new("NVIDIA's licence").size(20.0).strong().color(GOLD));
+            ui.label(RichText::new(tr("NVIDIA's licence")).size(20.0).strong().color(GOLD));
             ui.add_space(6.0);
-            ui.label("Download DLSS fetches eight files from NVIDIA's Streamline 2.14.16 release on GitHub: the six sl.* files (MIT licence) and nvngx_dlss.dll and nvngx_dlssg.dll, under the licence below. Each file is checked against its pinned SHA-256 and NVIDIA's signatures, and nothing is written unless all pass; a file already in the dlss folder is kept.");
+            ui.label(tr("Download DLSS fetches eight files from NVIDIA's Streamline 2.14.16 release on GitHub: the six sl.* files (MIT licence) and nvngx_dlss.dll and nvngx_dlssg.dll, under the licence below. Each file is checked against its pinned SHA-256 and NVIDIA's signatures, and nothing is written unless all pass; a file already in the dlss folder is kept."));
             ui.add_space(6.0);
             Frame::new().fill(theme::BG).corner_radius(4).inner_margin(Margin::same(10)).show(ui, |ui| {
                 egui::ScrollArea::vertical().max_height(320.0).auto_shrink([false, false]).show(ui, |ui| {
@@ -1369,15 +1380,15 @@ impl App {
             });
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                let accept = ui.add(gold_button("I accept", true)).on_hover_text("A mouse click only.");
+                let accept = ui.add(gold_button("I accept", true)).on_hover_text(tr("A mouse click only."));
                 if accept.clicked_by(egui::PointerButton::Primary) {
                     nvf_dlss_files::download::start_into(nvf_dlss_files::download::LicenceAccepted::by_player(), None, crate::dlss::folder_for(self.exe.as_deref()));
                     self.dlss_licence = false;
                 }
-                if ui.button("Cancel").clicked() {
+                if ui.button(tr("Cancel")).clicked() {
                     self.dlss_licence = false;
                 }
-                if ui.button("Open on GitHub").clicked() {
+                if ui.button(tr("Open on GitHub")).clicked() {
                     launch::open_url(nvf_dlss_files::download::RELEASE_PAGE);
                 }
             });
@@ -1449,14 +1460,14 @@ impl App {
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         let at = display::chosen("resolution", &choices, now);
                         let shown = at.map_or(now.clone(), |i| choices[i].label.clone());
-                        egui::ComboBox::from_id_salt(("resolution", name)).width(width - 8.0).selected_text(shown).show_ui(ui, |ui| {
+                        egui::ComboBox::from_id_salt(("resolution", name)).width(width - 8.0).selected_text(tr_str(&shown)).show_ui(ui, |ui| {
                             for (i, c) in choices.iter().enumerate() {
-                                if ui.selectable_label(at == Some(i), &c.label).clicked() && at != Some(i) {
+                                if ui.selectable_label(at == Some(i), tr_str(&c.label)).clicked() && at != Some(i) {
                                     out = Some(if is_window { display::join_resolution(&c.stored, &full) } else { display::join_resolution(&window, &c.stored) });
                                 }
                             }
                         });
-                        ui.label(RichText::new(name).small().color(WEAK));
+                        ui.label(RichText::new(tr_str(name)).small().color(WEAK));
                     });
                 });
             }
@@ -1478,7 +1489,7 @@ impl App {
 
     fn mods_page(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.heading("Mods");
+            ui.heading(tr("Mods"));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui.add_enabled(self.mods_dirty, gold_button("Save", self.mods_dirty)).clicked() {
                     let r = self.save_mods();
@@ -1490,11 +1501,11 @@ impl App {
                         Err(e) => self.message = Some((e, true)),
                     }
                 }
-                if ui.add_enabled(self.mods_dirty, egui::Button::new("Undo changes")).clicked() {
+                if ui.add_enabled(self.mods_dirty, egui::Button::new(tr("Undo changes"))).clicked() {
                     self.load_mods();
                 }
                 if let Some(h) = &self.home {
-                    if ui.button("Open mods folder").clicked() {
+                    if ui.button(tr("Open mods folder")).clicked() {
                         let _ = std::fs::create_dir_all(h.mods());
                         launch::open_folder(&h.mods());
                     }
@@ -1502,14 +1513,14 @@ impl App {
             });
         });
         ui.label(
-            RichText::new("NVForever's own load order (plugins.txt in its folder; the original game's list is never read or changed). Top loads first: drag a row to move it. Using Mod Organizer 2? Start NVForever from MO2 instead.")
+            RichText::new(tr("NVForever's own load order (plugins.txt in its folder; the original game's list is never read or changed). Top loads first: drag a row to move it. Using Mod Organizer 2? Start NVForever from MO2 instead."))
                 .small()
                 .color(WEAK),
         );
         self.start_box(ui);
         ui.separator();
         let Some(list) = &mut self.mods else {
-            ui.label("No plugin list yet: set the game folder first, or start the game once.");
+            ui.label(tr("No plugin list yet: set the game folder first, or start the game once."));
             return;
         };
         let present: HashSet<String> = self
@@ -1555,7 +1566,7 @@ impl App {
                             }
                             name_rect = ui.label(&e.name).rect;
                             if !present.is_empty() && !present.contains(&e.name.to_ascii_lowercase()) {
-                                ui.label(RichText::new("missing").small().color(BAD));
+                                ui.label(RichText::new(tr("missing")).small().color(BAD));
                             }
                         });
                     });
@@ -1619,38 +1630,38 @@ impl App {
         ui.add_space(4.0);
         card(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.label(RichText::new("New game start").strong());
+            ui.label(RichText::new(tr("New game start")).strong());
             ui.label(
-                RichText::new("For mods that start somewhere else (their install guide gives the values). Empty: the New Vegas opening and its film. Saved to NVForever.ini's [General].")
+                RichText::new(tr("For mods that start somewhere else (their install guide gives the values). Empty: the New Vegas opening and its film. Saved to NVForever.ini's [General]."))
                     .small()
                     .color(WEAK),
             );
             let w = (ui.available_width() - 120.0).max(120.0);
             egui::Grid::new("start_fields").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
-                ui.label("Start quest");
-                ui.add(egui::TextEdit::singleline(&mut self.start_edit.quest).hint_text("VCG00 (New Vegas opening); TTW: 001FFFF8").desired_width(w));
+                ui.label(tr("Start quest"));
+                ui.add(egui::TextEdit::singleline(&mut self.start_edit.quest).hint_text(tr("VCG00 (New Vegas opening); TTW: 001FFFF8")).desired_width(w));
                 ui.end_row();
-                ui.label("Intro film");
+                ui.label(tr("Intro film"));
                 ui.add_enabled(!self.start_edit.no_film, egui::TextEdit::singleline(&mut self.start_edit.film).hint_text(r"fnvintro.bik (a file in Data\Video)").desired_width(w));
                 ui.end_row();
                 ui.label("");
-                ui.checkbox(&mut self.start_edit.no_film, "No intro film");
+                ui.checkbox(&mut self.start_edit.no_film, tr("No intro film"));
                 ui.end_row();
             });
             ui.horizontal(|ui| {
-                save = ui.add_enabled(self.start_edit != saved, egui::Button::new("Save start")).clicked();
-                if ttw.is_some() && !self.start_edit.is_ttw() && ui.button("Use Tale of Two Wastelands' start").on_hover_text("Start quest 001FFFF8 and no intro film; Save to keep it").clicked() {
+                save = ui.add_enabled(self.start_edit != saved, egui::Button::new(tr("Save start"))).clicked();
+                if ttw.is_some() && !self.start_edit.is_ttw() && ui.button(tr("Use Tale of Two Wastelands' start")).on_hover_text(tr("Start quest 001FFFF8 and no intro film; Save to keep it")).clicked() {
                     self.start_edit = start::ttw();
                 }
-                if self.start_edit != start::Fields::default() && ui.button("Clear").on_hover_text("Back to the New Vegas opening; Save to keep it").clicked() {
+                if self.start_edit != start::Fields::default() && ui.button(tr("Clear")).on_hover_text(tr("Back to the New Vegas opening; Save to keep it")).clicked() {
                     self.start_edit = start::Fields::default();
                 }
-                if self.start_edit != saved && ui.button("Undo").clicked() {
+                if self.start_edit != saved && ui.button(tr("Undo")).clicked() {
                     self.start_edit = saved.clone();
                 }
             });
             if self.start_edit.is_ttw() && ttw == Some(false) {
-                ui.label(RichText::new(format!("{} is off in the list below: turn it on, or this start quest is not found.", start::TTW_PLUGIN)).small().color(BAD));
+                ui.label(RichText::new(trf("{arg0} is off in the list below: turn it on, or this start quest is not found.", &[("arg0", &(start::TTW_PLUGIN))])).small().color(BAD));
             }
         });
         if save {
@@ -1676,19 +1687,19 @@ impl App {
     }
 
     fn game_page(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Game folder");
-        ui.label(RichText::new("Your Fallout: New Vegas folder, the one holding Data. NVForever only reads it.").small().color(WEAK));
+        ui.heading(tr("Game folder"));
+        ui.label(RichText::new(tr("Your Fallout: New Vegas folder, the one holding Data. NVForever only reads it.")).small().color(WEAK));
         ui.add_space(8.0);
         card(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
                 ui.add(egui::TextEdit::singleline(&mut self.game_edit).desired_width(ui.available_width() - 190.0));
-                if cfg!(windows) && ui.button("Browse…").clicked() {
+                if cfg!(windows) && ui.button(tr("Browse…")).clicked() {
                     if let Some(d) = pick_folder("Your Fallout: New Vegas folder") {
                         self.game_edit = d.display().to_string();
                     }
                 }
-                if ui.button(RichText::new("Save").strong()).clicked() {
+                if ui.button(RichText::new(tr("Save")).strong()).clicked() {
                     self.save_game_folder();
                 }
             });
@@ -1696,12 +1707,12 @@ impl App {
                 Ok(g) => {
                     let missing = g.missing_files();
                     if missing.is_empty() {
-                        ui.label(RichText::new("Every game file NVForever needs is there.").color(GOOD));
+                        ui.label(RichText::new(tr("Every game file NVForever needs is there.")).color(GOOD));
                     } else {
-                        ui.label(RichText::new(format!("Missing from Data: {}", missing.join(", "))).color(BAD));
+                        ui.label(RichText::new(trf("Missing from Data: {arg0}", &[("arg0", &(missing.join(", ")))])).color(BAD));
                     }
                     let addons = g.addon_masters();
-                    ui.label(RichText::new(format!("Add-ons found: {}", if addons.is_empty() { "none".to_string() } else { addons.join(", ") })).small().color(WEAK));
+                    ui.label(RichText::new(trf("Add-ons found: {arg0}", &[("arg0", &(if addons.is_empty() { tr("none").to_string() } else { addons.join(", ") }))])).small().color(WEAK));
                 }
                 Err(e) if !self.game_edit.trim().is_empty() => {
                     ui.label(RichText::new(e.to_string()).color(BAD));
@@ -1710,21 +1721,21 @@ impl App {
             }
         });
         ui.add_space(12.0);
-        ui.label(RichText::new("PROGRAM").small().strong().color(theme::GOLD_TEXT));
+        ui.label(RichText::new(tr("PROGRAM")).small().strong().color(theme::GOLD_TEXT));
         card(ui, |ui| {
             ui.set_width(ui.available_width());
             match &self.exe {
-                Some(p) => ui.label(format!("Starts {}", p.display())),
-                None => ui.label(RichText::new(format!("{} was not found beside the launcher.", launch::GAME_EXE)).color(BAD)),
+                Some(p) => ui.label(trf("Starts {arg0}", &[("arg0", &(p.display()))])),
+                None => ui.label(RichText::new(trf("{arg0} was not found beside the launcher.", &[("arg0", &(launch::GAME_EXE))])).color(BAD)),
             };
-            if cfg!(windows) && ui.button("Choose the game program…").clicked() {
+            if cfg!(windows) && ui.button(tr("Choose the game program…")).clicked() {
                 if let Some(f) = pick_file("nvforever") {
                     self.set_launcher_key("Exe", &f.display().to_string());
                 }
             }
         });
         ui.add_space(12.0);
-        ui.label(RichText::new("VERSION").small().strong().color(theme::GOLD_TEXT));
+        ui.label(RichText::new(tr("VERSION")).small().strong().color(theme::GOLD_TEXT));
         card(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.label(format!("NVForever v{}", version()));
@@ -1733,25 +1744,25 @@ impl App {
             match (&install, kept) {
                 (Ok(dir), Some((v, _))) => {
                     let busy = !matches!(self.upd, Upd::Idle | Upd::Failed(_));
-                    let b = ui.add_enabled(!busy, egui::Button::new(format!("Roll back to v{v}")));
-                    if b.on_hover_text("Put the version the last update replaced back (this one is kept in its place). Saves, settings and mods are not touched.").clicked() {
+                    let b = ui.add_enabled(!busy, egui::Button::new(trf("Roll back to v{v}", &[("v", &(v))])));
+                    if b.on_hover_text(tr("Put the version the last update replaced back (this one is kept in its place). Saves, settings and mods are not touched.")).clicked() {
                         self.roll_back(dir.clone(), ui.ctx());
                     }
                 }
                 (Ok(_), None) => {
-                    ui.label(RichText::new("No earlier version is kept: an update keeps the one it replaces, to roll back to.").small().color(WEAK));
+                    ui.label(RichText::new(tr("No earlier version is kept: an update keeps the one it replaces, to roll back to.")).small().color(WEAK));
                 }
                 (Err(e), _) => {
-                    ui.label(RichText::new(format!("Updates: {e}")).small().color(WEAK));
+                    ui.label(RichText::new(trf("Updates: {e}", &[("e", &(e))])).small().color(WEAK));
                 }
             }
         });
         ui.add_space(12.0);
-        ui.label(RichText::new("FOLDERS").small().strong().color(theme::GOLD_TEXT));
+        ui.label(RichText::new(tr("FOLDERS")).small().strong().color(theme::GOLD_TEXT));
         if let Some(h) = self.home.clone() {
             ui.horizontal_wrapped(|ui| {
                 for (name, dir) in [("Saves", h.saves()), ("Logs", h.logs()), ("Screenshots", h.screenshots()), ("Settings", h.root.clone())] {
-                    if ui.button(name).clicked() {
+                    if ui.button(tr_str(name)).clicked() {
                         let _ = std::fs::create_dir_all(&dir);
                         launch::open_folder(&dir);
                     }
@@ -1837,9 +1848,9 @@ impl App {
         match update::roll_back(&dir, version(), self.game().as_ref()) {
             Ok(v) => match update::restart(&dir, "--rolled-back") {
                 Ok(()) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
-                Err(e) => self.message = Some((format!("Rolled back to v{v}; start the launcher again ({e})."), false)),
+                Err(e) => self.message = Some((trf("Rolled back to v{v}; start the launcher again ({e}).", &[("v", &(v)), ("e", &(e))]), false)),
             },
-            Err(e) => self.message = Some((format!("Roll back failed, nothing was changed: {e}"), true)),
+            Err(e) => self.message = Some((trf("Roll back failed, nothing was changed: {e}", &[("e", &(e))]), true)),
         }
     }
 
@@ -1866,7 +1877,7 @@ impl App {
                         Ok(()) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
                         Err(e) => {
                             self.latest = None;
-                            self.message = Some((format!("Updated to v{v}; start the launcher again ({e})."), false));
+                            self.message = Some((trf("Updated to v{v}; start the launcher again ({e}).", &[("v", &(v)), ("e", &(e))]), false));
                         }
                     }
                     return;
@@ -1908,7 +1919,7 @@ impl App {
                 ui.horizontal(|ui| {
                     ui.label(RichText::new(format!("NVForever v{}", l.version)).size(22.0).strong().color(GOLD));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui.add(egui::Button::new(RichText::new("×").size(24.0).color(WEAK)).frame(false)).on_hover_text("Close").clicked() {
+                        if ui.add(egui::Button::new(RichText::new("×").size(24.0).color(WEAK)).frame(false)).on_hover_text(tr("Close")).clicked() {
                             open = false;
                         }
                     });
@@ -1917,7 +1928,7 @@ impl App {
                 ui.add_space(4.0);
                 ui.spacing_mut().item_spacing = Vec2::new(10.0, 8.0);
                 ui.spacing_mut().button_padding = Vec2::new(14.0, 6.0);
-                ui.label(format!("v{} is out; this is v{}.{}", l.version, version(), size.map_or(String::new(), |s| format!(" Download: {}.", megabytes(s)))));
+                ui.label(trf("v{arg0} is out; this is v{arg1}.{arg2}", &[("arg0", &(l.version)), ("arg1", &(version())), ("arg2", &(size.map_or(String::new(), |s| trf(" Download: {arg0}.", &[("arg0", &(megabytes(s)))]))))]));
                 if !l.notes.trim().is_empty() {
                     ui.add_space(6.0);
                     egui::ScrollArea::vertical().max_height(320.0).auto_shrink([false, true]).show(ui, |ui| {
@@ -1932,15 +1943,15 @@ impl App {
                             Ok(_) => "Your saves, settings and mods are not touched. The version you have now is kept, to roll back to from the Game folder page.".to_string(),
                             Err(e) => e.clone(),
                         };
-                        ui.label(RichText::new(note).small().color(WEAK));
+                        ui.label(RichText::new(tr_str(&note)).small().color(WEAK));
                         ui.horizontal(|ui| {
-                            if install.is_ok() && ui.button(RichText::new("Update now").strong()).clicked() {
+                            if install.is_ok() && ui.button(RichText::new(tr("Update now")).strong()).clicked() {
                                 self.start_update(ui.ctx());
                             }
-                            if ui.button("Later").clicked() {
+                            if ui.button(tr("Later")).clicked() {
                                 self.upd_open = false;
                             }
-                            if ui.button("Release page").clicked() {
+                            if ui.button(tr("Release page")).clicked() {
                                 launch::open_url(&l.url);
                             }
                         });
@@ -1948,29 +1959,29 @@ impl App {
                     Upd::Working { phase, done, total } => {
                         let (phase, done, total) = (*phase, *done, *total);
                         let bar = if phase == Phase::Downloading && total > 0 {
-                            egui::ProgressBar::new(done as f32 / total as f32).text(format!("{} {} of {}", phase.words(), megabytes(done), megabytes(total)))
+                            egui::ProgressBar::new(done as f32 / total as f32).text(format!("{} {} of {}", tr(phase.words()), megabytes(done), megabytes(total)))
                         } else {
-                            egui::ProgressBar::new(0.0).animate(true).text(phase.words())
+                            egui::ProgressBar::new(0.0).animate(true).text(tr(phase.words()))
                         };
                         ui.add(bar);
-                        if phase == Phase::Downloading && ui.button("Cancel").clicked() {
+                        if phase == Phase::Downloading && ui.button(tr("Cancel")).clicked() {
                             self.upd_cancel.store(true, Ordering::Relaxed);
                         }
                     }
                     Upd::Ready(_) => {
-                        ui.label(RichText::new(if running { "Downloaded. It installs as soon as the game is closed." } else { "Downloaded." }).color(GOOD));
+                        ui.label(RichText::new(tr(if running { "Downloaded. It installs as soon as the game is closed." } else { "Downloaded." })).color(GOOD));
                     }
                     Upd::Installing | Upd::Closing => {
                         ui.add(egui::ProgressBar::new(1.0).animate(true).text(Phase::Installing.words()));
                     }
                     Upd::Failed(e) => {
-                        ui.label(RichText::new(format!("The update did not go in: {e}")).color(BAD));
-                        ui.label(RichText::new("Try again, or download it from the release page.").small().color(WEAK));
+                        ui.label(RichText::new(trf("The update did not go in: {e}", &[("e", &(e))])).color(BAD));
+                        ui.label(RichText::new(tr("Try again, or download it from the release page.")).small().color(WEAK));
                         ui.horizontal(|ui| {
-                            if install.is_ok() && ui.button("Try again").clicked() {
+                            if install.is_ok() && ui.button(tr("Try again")).clicked() {
                                 self.start_update(ui.ctx());
                             }
-                            if ui.button("Release page").clicked() {
+                            if ui.button(tr("Release page")).clicked() {
                                 launch::open_url(&l.url);
                             }
                         });
@@ -1990,12 +2001,12 @@ impl App {
 
 #[cfg(windows)]
 fn pick_folder(title: &str) -> Option<PathBuf> {
-    rfd::FileDialog::new().set_title(title).pick_folder()
+    rfd::FileDialog::new().set_title(tr_str(title)).pick_folder()
 }
 
 #[cfg(windows)]
 fn pick_file(title: &str) -> Option<PathBuf> {
-    rfd::FileDialog::new().set_title(title).pick_file()
+    rfd::FileDialog::new().set_title(tr_str(title)).pick_file()
 }
 
 /// No picker off Windows (Cargo.toml): the path is typed.

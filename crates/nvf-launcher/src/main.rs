@@ -20,8 +20,19 @@ mod update;
 const ICON: &[u8] = include_bytes!("../assets/icon-64.png");
 
 fn main() -> eframe::Result {
+    // Select the installed Korean profile before the UI creates worker threads.
+    let directory = std::env::current_exe().ok().and_then(|p| p.parent().map(std::path::Path::to_path_buf));
+    if let Some(home) = directory.as_ref().map(|d| d.join("korean-home")).filter(|h| h.join("NVForever.ini").is_file()) {
+        std::env::set_var("NVFOREVER_HOME", home);
+    }
+    let home = fnv_install::EngineHome::user();
+    fnv_util::words::load(&fnv_util::words::dirs(directory.as_deref(), home.as_ref().map(|h| h.root.as_path())));
+    let ini = home.as_ref().and_then(|h| std::fs::read_to_string(h.config_file()).ok()).unwrap_or_default();
+    if let Some(language) = fnv_install::ini_get(&ini, "Settings", "language") {
+        fnv_util::words::set_language(&language);
+    }
     let mut viewport = eframe::egui::ViewportBuilder::default()
-        .with_title("NVForever Launcher")
+        .with_title(fnv_util::words::tr("NVForever Launcher"))
         .with_inner_size([1180.0, 760.0])
         .with_min_inner_size([900.0, 560.0]);
 

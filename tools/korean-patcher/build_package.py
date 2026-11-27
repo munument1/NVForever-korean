@@ -21,7 +21,6 @@ def build(game, engine, fonts, output, source, build_name, launcher):
     for name in ("nvforever.exe", "LICENSE"):
         shutil.copy2(engine / name, payload / name)
     shutil.copy2(launcher, payload / "nvforever-launcher.exe")
-    shutil.copy2(Path(__file__).parent / "launcher.rs", output / "launcher-source.rs")
     shutil.copytree(engine / "schemas", payload / "schemas")
     (payload / "lang").mkdir()
     shutil.copy2(engine / "lang/ko.toml", payload / "lang/ko.toml")

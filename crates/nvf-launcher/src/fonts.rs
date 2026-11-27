@@ -49,6 +49,16 @@ pub fn install(ctx: &egui::Context) {
         let p = fonts.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();
         fonts.families.insert(FontFamily::Name(TITLE.into()), p);
     }
+    let configured = fnv_install::EngineHome::user().and_then(|home| {
+        let path = fnv_install::Config::load(&home).ok()?.cjk_font_path?;
+        Some(home.root.join(path))
+    });
+    if let Some(data) = configured.and_then(|p| std::fs::read(p).ok()) {
+        fonts.font_data.insert("cjk".into(), Arc::new(FontData::from_owned(data)));
+        for family in fonts.families.values_mut() {
+            family.push("cjk".into());
+        }
+    }
     ctx.set_fonts(fonts);
 }
 

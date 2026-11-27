@@ -38,7 +38,7 @@ pub const CAPS: [u32; 6] = [0, 30, 60, 90, 120, 144];
 /// (`choice_part`: 0.00, 0.20, … 1.00).
 pub fn cap_choices() -> Vec<Choice> {
     let n = CAPS.len() - 1;
-    CAPS.iter().enumerate().map(|(i, c)| choice(if *c == 0 { "Off".to_string() } else { format!("{c} a second") }, format!("{:.2}", i as f32 / n as f32))).collect()
+    CAPS.iter().enumerate().map(|(i, c)| choice(if *c == 0 { "Off".to_string() } else { fnv_util::words::trf("{rate} a second", &[("rate", c)]) }, format!("{:.2}", i as f32 / n as f32))).collect()
 }
 
 /// The cap a stored part stands for (`choice_index`).
@@ -156,7 +156,7 @@ pub fn read_only(key: &str) -> bool {
 
 /// The game's name for display `i` of the left-to-right order (`monitor_label`).
 pub fn monitor_label(i: usize, m: &Monitor) -> String {
-    format!("Display {} ({}x{})", i + 1, m.size.0, m.size.1)
+    fnv_util::words::trf("Display {number} ({width}x{height})", &[("number", &(i + 1)), ("width", &m.size.0), ("height", &m.size.1)])
 }
 
 /// Monitor: the displays in the game's order (left to right, then top to bottom).
@@ -222,7 +222,7 @@ pub fn window_choices(m: Option<&Monitor>, current: &str) -> Vec<Choice> {
 /// every size of its modes, with the one in use kept.
 pub fn full_choices(m: Option<&Monitor>, current: &str) -> Vec<Choice> {
     let own = match m {
-        Some(m) => format!("The display's own ({})", size_text(m.size)),
+        Some(m) => fnv_util::words::trf("The display's own ({size})", &[("size", &size_text(m.size))]),
         None => "The display's own".to_string(),
     };
     let mut s = sizes(m);

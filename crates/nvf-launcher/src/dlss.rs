@@ -67,14 +67,14 @@ pub fn progress_words(p: &Progress) -> (String, Option<f32>) {
     let mb = |b: u64| b as f32 / 1_048_576.0;
     let part = (p.to_fetch > 0).then(|| (p.fetched as f32 / p.to_fetch as f32).clamp(0.0, 1.0));
     let words = match &p.phase {
-        Phase::Connecting => "Asking GitHub for NVIDIA's release…".to_string(),
-        Phase::Directory => "Reading the release's list of files…".to_string(),
+        Phase::Connecting => fnv_util::words::tr("Asking GitHub for NVIDIA's release…").to_string(),
+        Phase::Directory => fnv_util::words::tr("Reading the release's list of files…").to_string(),
         Phase::File { name, index, of } => format!("{name} ({index} of {of}): {:.1} of {:.1} MB", mb(p.fetched), mb(p.to_fetch)),
-        Phase::Checking => "Checking the files' signatures…".to_string(),
-        Phase::Installing => "Moving the files into the dlss folder…".to_string(),
-        Phase::Done(folder) => format!("DLSS is ready in {}: the game uses it at its next start.", folder.display()),
-        Phase::Failed(f) => format!("The download failed, nothing was written: {f}."),
-        Phase::Cancelled => "Cancelled, nothing was written.".to_string(),
+        Phase::Checking => fnv_util::words::tr("Checking the files' signatures…").to_string(),
+        Phase::Installing => fnv_util::words::tr("Moving the files into the dlss folder…").to_string(),
+        Phase::Done(folder) => fnv_util::words::trf("DLSS is ready in {folder}: the game uses it at its next start.", &[("folder", &folder.display())]),
+        Phase::Failed(f) => fnv_util::words::trf("The download failed, nothing was written: {error}.", &[("error", f)]),
+        Phase::Cancelled => fnv_util::words::tr("Cancelled, nothing was written.").to_string(),
     };
     (words, part)
 }
