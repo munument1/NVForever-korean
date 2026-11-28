@@ -251,6 +251,33 @@ pub fn list_value(key: &str, value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn korean_covers_general_settings_and_disabled_reasons() {
+        let table = fnv_util::words::Table::parse("ko", include_str!("../../../lang/ko.toml")).unwrap();
+        let mut missing = std::collections::BTreeSet::new();
+        let mut check = |text: &str| {
+            if !text.is_empty() && table.get(text).is_none() {
+                missing.insert(text.to_string());
+            }
+        };
+        for row in super::Catalog::built_in().rows.iter().filter(|r| r.tab != nvf_settings_layout::TWEAKS_TAB && !r.unlisted) {
+            check(&row.label);
+            check(&row.note);
+            if let Some(heading) = &row.heading {
+                for part in heading.split(" › ") {
+                    check(part);
+                }
+            }
+            for rule in &row.needs {
+                check(&rule.why);
+            }
+        }
+        for label in ["8 cells", "12 cells", "Installing…", "fnvintro.bik (a file in Data\\Video)"] {
+            check(label);
+        }
+        assert!(missing.is_empty(), "Missing Korean launcher text: {missing:?}");
+    }
+
     use super::*;
 
     #[test]

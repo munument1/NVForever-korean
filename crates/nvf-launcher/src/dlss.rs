@@ -69,7 +69,11 @@ pub fn progress_words(p: &Progress) -> (String, Option<f32>) {
     let words = match &p.phase {
         Phase::Connecting => fnv_util::words::tr("Asking GitHub for NVIDIA's release…").to_string(),
         Phase::Directory => fnv_util::words::tr("Reading the release's list of files…").to_string(),
-        Phase::File { name, index, of } => format!("{name} ({index} of {of}): {:.1} of {:.1} MB", mb(p.fetched), mb(p.to_fetch)),
+        Phase::File { name, index, of } => fnv_util::words::trf(
+            "{name} ({index} of {total}): {downloaded} of {size} MB",
+            &[("name", name), ("index", index), ("total", of),
+                ("downloaded", &format!("{:.1}", mb(p.fetched))), ("size", &format!("{:.1}", mb(p.to_fetch)))],
+        ),
         Phase::Checking => fnv_util::words::tr("Checking the files' signatures…").to_string(),
         Phase::Installing => fnv_util::words::tr("Moving the files into the dlss folder…").to_string(),
         Phase::Done(folder) => fnv_util::words::trf("DLSS is ready in {folder}: the game uses it at its next start.", &[("folder", &folder.display())]),

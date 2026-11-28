@@ -102,7 +102,7 @@ pub fn exit_message(code: Option<i32>, success: bool, logs: Option<&Path>) -> Op
     }
     let how = match code {
         // Windows reports a crash as a large unsigned code (0xC0000005): shown in hex.
-        Some(c) if !(-255..=255).contains(&c) => format!("exit code 0x{:08X}", c as u32),
+        Some(c) if !(-255..=255).contains(&c) => fnv_util::words::trf("exit code {code}", &[("code", &format!("0x{:08X}", c as u32))]),
           Some(c) => fnv_util::words::trf("exit code {code}", &[("code", &c)]),
           None => fnv_util::words::tr("no exit code").to_string(),
     };

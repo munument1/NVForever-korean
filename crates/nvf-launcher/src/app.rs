@@ -1100,7 +1100,7 @@ impl App {
                         ui.label(RichText::new(note).small().color(WEAK));
                     }
                     if let Some(why) = greyed {
-                        ui.label(RichText::new(trf("Greyed out: {why}", &[("why", &(why))])).small().color(WEAK));
+                        ui.label(RichText::new(trf("Greyed out: {why}", &[("why", &tr_str(why))])).small().color(WEAK));
                     }
                 });
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -1167,7 +1167,10 @@ impl App {
                         }
                         Kind::Slider => {
                             let mut f: f32 = v.trim().parse().unwrap_or(0.0);
-                            let words: Option<Vec<String>> = self.words.get(key).map(|w| w.iter().map(|s| tr_str(s).to_string()).collect()).or_else(|| crate::display::steps(key));
+                            let words: Option<Vec<String>> = self.words.get(key)
+                                .map(|w| w.iter().map(|s| s.to_string()).collect())
+                                .or_else(|| crate::display::steps(key))
+                                .map(|words| words.into_iter().map(|word| tr_str(&word).to_string()).collect());
                             let s = match words {
                                 Some(words) => {
                                     let n = words.len();
@@ -1306,12 +1309,12 @@ impl App {
             ui.label(RichText::new(tr("An optional upscaler beside FSR 3.1 (and DLSS frame generation on RTX 40 or newer). NVForever ships no NVIDIA file: the four upscaling and four frame generation files come from NVIDIA's own Streamline release, under NVIDIA's licence.")).small().color(WEAK));
             ui.add_space(6.0);
             need(ui, s.windows, "Windows".into());
-            let gpu = if s.gpus.is_empty() { "no graphics card named by Windows".to_string() } else { s.gpus.join(", ") };
+            let gpu = if s.gpus.is_empty() { tr("no graphics card named by Windows").to_string() } else { s.gpus.join(", ") };
             need(ui, s.rtx(), trf("An NVIDIA RTX graphics card with a current driver ({gpu})", &[("gpu", &(gpu))]));
             need(ui, s.upscaling == nvf_dlss_files::FILES.len(), trf("Upscaling files: {arg0} of {arg1}", &[("arg0", &(s.upscaling)), ("arg1", &(nvf_dlss_files::FILES.len()))]));
             need(ui, s.frame_generation == nvf_dlss_files::FG_FILES.len(), trf("Frame generation files: {arg0} of {arg1}", &[("arg0", &(s.frame_generation)), ("arg1", &(nvf_dlss_files::FG_FILES.len()))]));
             match &s.folder {
-                Ok(f) => ui.label(RichText::new(format!("In {}", f.display())).small().color(WEAK)),
+                Ok(f) => ui.label(RichText::new(trf("In {folder}", &[("folder", &f.display())])).small().color(WEAK)),
                 Err(e) => ui.label(RichText::new(e.clone()).small().color(BAD)),
             };
             ui.add_space(6.0);
@@ -1642,7 +1645,7 @@ impl App {
                 ui.add(egui::TextEdit::singleline(&mut self.start_edit.quest).hint_text(tr("VCG00 (New Vegas opening); TTW: 001FFFF8")).desired_width(w));
                 ui.end_row();
                 ui.label(tr("Intro film"));
-                ui.add_enabled(!self.start_edit.no_film, egui::TextEdit::singleline(&mut self.start_edit.film).hint_text(r"fnvintro.bik (a file in Data\Video)").desired_width(w));
+                ui.add_enabled(!self.start_edit.no_film, egui::TextEdit::singleline(&mut self.start_edit.film).hint_text(tr(r"fnvintro.bik (a file in Data\Video)")).desired_width(w));
                 ui.end_row();
                 ui.label("");
                 ui.checkbox(&mut self.start_edit.no_film, tr("No intro film"));
@@ -1972,7 +1975,7 @@ impl App {
                         ui.label(RichText::new(tr(if running { "Downloaded. It installs as soon as the game is closed." } else { "Downloaded." })).color(GOOD));
                     }
                     Upd::Installing | Upd::Closing => {
-                        ui.add(egui::ProgressBar::new(1.0).animate(true).text(Phase::Installing.words()));
+                        ui.add(egui::ProgressBar::new(1.0).animate(true).text(tr(Phase::Installing.words())));
                     }
                     Upd::Failed(e) => {
                         ui.label(RichText::new(trf("The update did not go in: {e}", &[("e", &(e))])).color(BAD));
